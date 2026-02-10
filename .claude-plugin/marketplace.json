@@ -1,0 +1,29 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "codeflash",
+  "owner": {
+    "name": "Codeflash",
+    "email": "support@codeflash.ai"
+  },
+  "metadata": {
+    "description": "Codeflash plugin for Claude Code — optimize Python code for performance",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "codeflash",
+      "description": "Run codeflash as a background agent to optimize Python code for performance",
+      "version": "0.1.0",
+      "author": {
+        "name": "Codeflash",
+        "email": "support@codeflash.ai"
+      },
+      "source": ".",
+      "homepage": "https://codeflash.ai",
+      "repository": "https://github.com/codeflash-ai/codeflash-cc-plugin",
+      "license": "MIT",
+      "keywords": ["python", "optimization", "performance", "codeflash"],
+      "category": "development"
+    }
+  ]
+}

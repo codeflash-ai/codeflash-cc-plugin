@@ -2,16 +2,43 @@
 
 A minimal Claude Code plugin that runs [Codeflash](https://codeflash.ai) as a background agent to optimize Python code for performance.
 
-## Installation
-
-```bash
-claude plugins add /path/to/codeflash-cc-plugin
-```
-
 ## Prerequisites
 
+- Claude Code v2.1.38 or later
 - [codeflash](https://pypi.org/project/codeflash/) installed in your project
 - Project initialized with `codeflash init` (creates `[tool.codeflash]` in `pyproject.toml`)
+
+## Installation
+
+### From GitHub
+
+Add the plugin marketplace and install:
+
+```bash
+/plugin marketplace add codeflash-ai/codeflash-cc-plugin
+/plugin install codeflash
+```
+
+### From a local clone
+
+```bash
+git clone https://github.com/codeflash-ai/codeflash-cc-plugin.git
+/plugin marketplace add ./codeflash-cc-plugin
+/plugin install codeflash
+```
+
+### Installation scope
+
+By default, plugins are installed at the user level (available across all projects). You can change this:
+
+```bash
+/plugin install codeflash --scope project  # shared with team via .claude/settings.json
+/plugin install codeflash --scope local    # this project only, gitignored
+```
+
+### Verify installation
+
+Run `/plugin` to open the plugin manager and confirm codeflash appears under the **Installed** tab.
 
 ## Usage
 
@@ -49,6 +76,7 @@ When you make a git commit that includes Python file changes, the plugin suggest
 ```
 codeflash-cc-plugin/
 ├── .claude-plugin/
+│   ├── marketplace.json         # Marketplace manifest
 │   └── plugin.json              # Plugin manifest
 ├── agents/
 │   └── optimizer.md             # Background optimization agent

@@ -18,7 +18,7 @@
         "name": "Codeflash",
         "email": "support@codeflash.ai"
       },
-      "source": ".",
+      "source": "./",
       "homepage": "https://codeflash.ai",
       "repository": "https://github.com/codeflash-ai/codeflash-cc-plugin",
       "license": "MIT",

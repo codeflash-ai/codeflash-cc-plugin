@@ -33,7 +33,7 @@ Then stop.
 
 ### 3. Verify Installation
 
-Run `<runner> codeflash --version`. If it fails (exit code non-zero), tell the user:
+Run `<runner> codeflash --worktree --version`. If it fails (exit code non-zero), tell the user:
 > Codeflash is not installed. Install it with:
 > - uv: `uv add codeflash`
 > - poetry: `poetry add codeflash`
@@ -59,10 +59,10 @@ Execute the appropriate command with a **10-minute timeout** (`timeout: 600000`)
 
 ```bash
 # Specific file
-<runner> codeflash --file <path> [--function <name>] [flags]
+<runner> codeflash --worktree --file <path> [--function <name>] [flags]
 
 # All files
-<runner> codeflash --all [flags]
+<runner> codeflash --worktree --all [flags]
 ```
 
 ### 6. Report Results

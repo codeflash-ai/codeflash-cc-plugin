@@ -1,0 +1,26 @@
+{
+  "context": "Tests whether the agent correctly extends package manager support across agent and script while maintaining manifest version sync",
+  "type": "weighted_checklist",
+  "checklist": [
+    {
+      "name": "Agent workflow updated",
+      "description": "agents/optimizer.md Step 1 includes conda detection (environment.yml → conda run), placed after pipenv in priority. Step 2/3 error handling includes conda install instructions.",
+      "max_score": 30
+    },
+    {
+      "name": "Script runner detection updated",
+      "description": "suggest-optimize.sh adds conda detection after pipenv, checking for environment.yml and setting RUNNER to conda run command. Priority order preserved: uv > poetry > pdm > pipenv > conda.",
+      "max_score": 30
+    },
+    {
+      "name": "Version sync",
+      "description": "plugin.json version bumped (minor). marketplace.json metadata.version and plugins[0].version both bumped to match plugin.json. All three version fields are identical.",
+      "max_score": 25
+    },
+    {
+      "name": "Correct file placement",
+      "description": "Only the specified files are modified. No new files are created. Changes are in agents/optimizer.md, scripts/suggest-optimize.sh, .claude-plugin/plugin.json, .claude-plugin/marketplace.json.",
+      "max_score": 15
+    }
+  ]
+}

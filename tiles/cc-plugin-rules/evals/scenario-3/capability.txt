@@ -1,0 +1,1 @@
+plugin-directory-layout, manifest-versioning, detect-verify-execute-workflow, suggest-script-flow

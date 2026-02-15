@@ -1,0 +1,69 @@
+{
+  "package_name": "cc-plugin-skills",
+  "total_capabilities": 9,
+  "capabilities": [
+    {
+      "id": 0,
+      "name": "update-argument-hint",
+      "description": "Updates SKILL.md argument-hint field to include new CLI flags in the correct format",
+      "complexity": "basic",
+      "api_elements": ["argument-hint", "SKILL.md", "skills/optimize/SKILL.md"]
+    },
+    {
+      "id": 1,
+      "name": "update-agent-parse-section",
+      "description": "Updates optimizer agent Step 4 (Parse Task Prompt) to document new flag extraction",
+      "complexity": "basic",
+      "api_elements": ["agents/optimizer.md", "Parse Task Prompt", "Extract from the prompt"]
+    },
+    {
+      "id": 2,
+      "name": "update-agent-run-section",
+      "description": "Updates optimizer agent Step 5 (Run Codeflash) command templates to include new flags",
+      "complexity": "basic",
+      "api_elements": ["agents/optimizer.md", "Run Codeflash", "codeflash --worktree"]
+    },
+    {
+      "id": 3,
+      "name": "check-hooks-json-path",
+      "description": "Verifies hooks.json has correct structure, command path uses ${CLAUDE_PLUGIN_ROOT}, and timeout is set",
+      "complexity": "basic",
+      "api_elements": ["hooks/hooks.json", "${CLAUDE_PLUGIN_ROOT}", "type: command"]
+    },
+    {
+      "id": 4,
+      "name": "verify-script-permissions",
+      "description": "Checks script is executable with ls -la and fixes with chmod +x if needed",
+      "complexity": "basic",
+      "api_elements": ["chmod +x", "ls -la", "scripts/suggest-optimize.sh"]
+    },
+    {
+      "id": 5,
+      "name": "test-script-manually",
+      "description": "Runs suggest-optimize.sh directly to inspect output, checks HEAD tracker state, and verifies pyproject.toml config",
+      "complexity": "intermediate",
+      "api_elements": ["bash scripts/suggest-optimize.sh", "/tmp/.codeflash-last-suggested", "git rev-parse HEAD"]
+    },
+    {
+      "id": 6,
+      "name": "check-jq-output",
+      "description": "Validates script JSON output format with hookSpecificOutput structure and verifies jq is installed",
+      "complexity": "basic",
+      "api_elements": ["jq", "hookSpecificOutput", "hookEventName", "additionalContext"]
+    },
+    {
+      "id": 7,
+      "name": "bump-version-sync",
+      "description": "Updates version in plugin.json, marketplace.json metadata.version, and marketplace.json plugins[0].version, keeping all three in sync",
+      "complexity": "basic",
+      "api_elements": ["plugin.json", "marketplace.json", "metadata.version", "plugins[0].version"]
+    },
+    {
+      "id": 8,
+      "name": "create-release-commit-tag",
+      "description": "Creates atomic commit with version bump and git tag matching the version",
+      "complexity": "basic",
+      "api_elements": ["git commit", "git tag", "chore: bump version"]
+    }
+  ]
+}

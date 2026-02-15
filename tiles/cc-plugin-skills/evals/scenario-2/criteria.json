@@ -1,0 +1,31 @@
+{
+  "context": "Tests whether the agent follows the debug-hook-failure skill workflow systematically to diagnose a hook issue",
+  "type": "weighted_checklist",
+  "checklist": [
+    {
+      "name": "hooks.json verification",
+      "description": "Checks hooks.json has UserPromptSubmit event, command type, ${CLAUDE_PLUGIN_ROOT}/scripts/suggest-optimize.sh path, and timeout: 5.",
+      "max_score": 15
+    },
+    {
+      "name": "Script permissions check",
+      "description": "Runs ls -la on suggest-optimize.sh to verify executable bit. Mentions chmod +x as fix if not executable.",
+      "max_score": 15
+    },
+    {
+      "name": "Manual script test",
+      "description": "Runs the script directly (bash scripts/suggest-optimize.sh) and inspects output. Checks exit code. If no output, investigates why: HEAD tracker, no Python files, no config.",
+      "max_score": 30
+    },
+    {
+      "name": "jq and output format check",
+      "description": "Verifies jq is installed and the output JSON has correct hookSpecificOutput structure with hookEventName and additionalContext.",
+      "max_score": 15
+    },
+    {
+      "name": "HEAD tracking verification",
+      "description": "Compares /tmp/.codeflash-last-suggested content with git rev-parse HEAD. Identifies stale tracker as likely cause if they match. Suggests rm of tracker file to force re-evaluation.",
+      "max_score": 25
+    }
+  ]
+}

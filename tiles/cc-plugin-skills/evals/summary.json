@@ -1,0 +1,47 @@
+{
+  "package_name": "cc-plugin-skills",
+  "total_scenarios": 3,
+  "total_capabilities_tested": 9,
+  "scenarios": [
+    {
+      "id": 1,
+      "name": "Add --timeout Flag",
+      "description": "Add a new --timeout flag to the optimizer agent and /optimize skill following the add-cli-flag workflow",
+      "capabilities_tested": [0, 1, 2],
+      "capability_names": ["update-argument-hint", "update-agent-parse-section", "update-agent-run-section"],
+      "rules_covered": ["add-cli-flag"]
+    },
+    {
+      "id": 2,
+      "name": "Hook Doesn't Detect Poetry Projects",
+      "description": "Debug why the suggest-optimize hook doesn't fire for poetry-managed projects following the debug-hook-failure workflow",
+      "capabilities_tested": [3, 4, 5, 6],
+      "capability_names": ["check-hooks-json-path", "verify-script-permissions", "test-script-manually", "check-jq-output"],
+      "rules_covered": ["debug-hook-failure"]
+    },
+    {
+      "id": 3,
+      "name": "Release v0.2.0",
+      "description": "Release a new version following the publish-new-version workflow with version sync and git tagging",
+      "capabilities_tested": [7, 8],
+      "capability_names": ["bump-version-sync", "create-release-commit-tag"],
+      "rules_covered": ["publish-new-version"]
+    }
+  ],
+  "capability_coverage": {
+    "0": {"name": "update-argument-hint", "tested_in": [1]},
+    "1": {"name": "update-agent-parse-section", "tested_in": [1]},
+    "2": {"name": "update-agent-run-section", "tested_in": [1]},
+    "3": {"name": "check-hooks-json-path", "tested_in": [2]},
+    "4": {"name": "verify-script-permissions", "tested_in": [2]},
+    "5": {"name": "test-script-manually", "tested_in": [2]},
+    "6": {"name": "check-jq-output", "tested_in": [2]},
+    "7": {"name": "bump-version-sync", "tested_in": [3]},
+    "8": {"name": "create-release-commit-tag", "tested_in": [3]}
+  },
+  "rules_coverage": {
+    "add-cli-flag": [1],
+    "debug-hook-failure": [2],
+    "publish-new-version": [3]
+  }
+}

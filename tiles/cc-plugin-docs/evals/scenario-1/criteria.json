@@ -1,0 +1,26 @@
+{
+  "context": "Tests understanding of the skill system, agent spawning, and the full optimizer workflow from docs",
+  "type": "weighted_checklist",
+  "checklist": [
+    {
+      "name": "Skill frontmatter explanation",
+      "description": "Correctly explains SKILL.md fields: name (optimize), user-invocable (true), argument-hint, context (fork = isolated), agent (codeflash:optimizer), allowed-tools (Task).",
+      "max_score": 20
+    },
+    {
+      "name": "Agent spawning and context",
+      "description": "Explains that context: fork creates a separate conversation context, the agent field maps to agents/optimizer.md, and $ARGUMENTS is replaced with user input.",
+      "max_score": 20
+    },
+    {
+      "name": "Six-step workflow",
+      "description": "Covers all 6 steps: detect runner (lock file priority), verify setup ([tool.codeflash]), verify install (--version), parse prompt (file, function, flags), run codeflash, report results.",
+      "max_score": 35
+    },
+    {
+      "name": "CLI flags and command",
+      "description": "Shows the correct command with --worktree (always present), --file src/utils.py, --function my_func, --effort high, and mentions the 10-minute timeout (600000ms).",
+      "max_score": 25
+    }
+  ]
+}

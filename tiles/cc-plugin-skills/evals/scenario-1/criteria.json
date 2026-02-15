@@ -1,0 +1,26 @@
+{
+  "context": "Tests whether the agent follows the add-cli-flag skill workflow to add a new flag across all relevant files",
+  "type": "weighted_checklist",
+  "checklist": [
+    {
+      "name": "SKILL.md argument-hint updated",
+      "description": "skills/optimize/SKILL.md argument-hint includes --timeout (e.g., [--timeout <seconds>]) alongside existing flags.",
+      "max_score": 25
+    },
+    {
+      "name": "Agent parse section updated",
+      "description": "agents/optimizer.md Step 4 lists --timeout with description (custom timeout in seconds) in the extraction bullet points.",
+      "max_score": 25
+    },
+    {
+      "name": "Agent run section updated",
+      "description": "agents/optimizer.md Step 5 command templates show [--timeout <seconds>] as an optional flag in both file-specific and --all variants.",
+      "max_score": 25
+    },
+    {
+      "name": "README updated",
+      "description": "README.md includes --timeout in at least one usage example or in the flags/options documentation.",
+      "max_score": 25
+    }
+  ]
+}

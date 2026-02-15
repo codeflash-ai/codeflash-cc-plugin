@@ -1,0 +1,15 @@
+{
+  "name": "codeflash-cc-plugin",
+  "mode": "vendored",
+  "dependencies": {
+    "codeflash/cc-plugin-rules": {
+      "source": "file:tiles/cc-plugin-rules"
+    },
+    "codeflash/cc-plugin-docs": {
+      "source": "file:tiles/cc-plugin-docs"
+    },
+    "codeflash/cc-plugin-skills": {
+      "source": "file:tiles/cc-plugin-skills"
+    }
+  }
+}

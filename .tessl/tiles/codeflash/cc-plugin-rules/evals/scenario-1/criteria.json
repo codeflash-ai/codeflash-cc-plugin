@@ -1,0 +1,26 @@
+{
+  "context": "Tests whether the agent follows plugin directory layout, agent frontmatter conventions, the detect-verify-execute workflow pattern, and error handling rules",
+  "type": "weighted_checklist",
+  "checklist": [
+    {
+      "name": "Agent frontmatter format",
+      "description": "agents/reviewer.md has YAML frontmatter with name, description (multi-line), model: inherit, maxTurns (reasonable value), color, and tools (minimal set). Uses --- delimiters.",
+      "max_score": 25
+    },
+    {
+      "name": "Detect-verify-execute workflow",
+      "description": "Agent body follows the 6-step pattern: detect runner from lock files (uv, poetry, pdm, pipenv), verify [tool.codeflash] in pyproject.toml, verify install, parse prompt arguments, execute command with --worktree, report results.",
+      "max_score": 30
+    },
+    {
+      "name": "Error handling",
+      "description": "Agent handles exit 127 (not installed), missing config (tell user to run codeflash init), and no-issues-found as a normal outcome.",
+      "max_score": 20
+    },
+    {
+      "name": "Correct directory placement",
+      "description": "Agent is at agents/reviewer.md, skill is at skills/review/SKILL.md. Skill frontmatter has agent: codeflash:reviewer, context: fork, user-invocable: true.",
+      "max_score": 25
+    }
+  ]
+}

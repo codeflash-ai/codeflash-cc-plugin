@@ -1,0 +1,26 @@
+{
+  "context": "Tests understanding of plugin.json and marketplace.json schemas, field purposes, and version synchronization",
+  "type": "weighted_checklist",
+  "checklist": [
+    {
+      "name": "plugin.json schema knowledge",
+      "description": "Correctly identifies plugin.json fields: name (codeflash), version (0.1.1), description, author.name, author.url, repository, homepage, license (MIT), keywords.",
+      "max_score": 30
+    },
+    {
+      "name": "marketplace.json schema knowledge",
+      "description": "Correctly identifies marketplace.json structure: $schema URL, name, owner (name + email), metadata (description + version), plugins array with source (./) and category (development).",
+      "max_score": 30
+    },
+    {
+      "name": "Version synchronization",
+      "description": "Identifies all 3 version locations and notes that they must stay in sync. Recognizes plugin.json version as the canonical source.",
+      "max_score": 25
+    },
+    {
+      "name": "Correct field mapping",
+      "description": "registry.json maps fields correctly: name from plugin.json, version from plugin.json, author_email from marketplace.json owner.email, source_url from repository, tags from keywords.",
+      "max_score": 15
+    }
+  ]
+}

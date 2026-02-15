@@ -1,0 +1,62 @@
+{
+  "package_name": "cc-plugin-rules",
+  "total_capabilities": 8,
+  "capabilities": [
+    {
+      "id": 0,
+      "name": "plugin-directory-layout",
+      "description": "New files are placed in the correct plugin directory: agents in agents/, skills in skills/<name>/, hooks in hooks/, scripts in scripts/, manifests in .claude-plugin/",
+      "complexity": "basic",
+      "api_elements": [".claude-plugin/", "agents/", "skills/", "hooks/", "scripts/"]
+    },
+    {
+      "id": 1,
+      "name": "manifest-versioning",
+      "description": "plugin.json and marketplace.json versions are kept in sync across all three version fields, following semver conventions",
+      "complexity": "basic",
+      "api_elements": ["plugin.json", "marketplace.json", "metadata.version", "plugins[0].version"]
+    },
+    {
+      "id": 2,
+      "name": "agent-frontmatter-format",
+      "description": "Agent markdown files use correct YAML frontmatter with name, description, model: inherit, maxTurns, color, and tools fields",
+      "complexity": "basic",
+      "api_elements": ["name", "model: inherit", "maxTurns", "tools", "---"]
+    },
+    {
+      "id": 3,
+      "name": "detect-verify-execute-workflow",
+      "description": "Agents follow the 6-step workflow: detect runner from lock files, verify setup via pyproject.toml, verify install, parse prompt, run codeflash with --worktree, report results",
+      "complexity": "intermediate",
+      "api_elements": ["uv.lock", "poetry.lock", "[tool.codeflash]", "--worktree", "timeout: 600000"]
+    },
+    {
+      "id": 4,
+      "name": "agent-error-handling",
+      "description": "Agents handle known error cases: exit 127 (not installed), missing config (codeflash init), no optimizations found (normal), broken test repair (normal)",
+      "complexity": "basic",
+      "api_elements": ["exit 127", "codeflash init", "no optimizations", "repair broken tests"]
+    },
+    {
+      "id": 5,
+      "name": "hooks-json-structure",
+      "description": "hooks.json uses correct structure with event name keys, hook groups array, type: command, ${CLAUDE_PLUGIN_ROOT} paths, and timeout in seconds",
+      "complexity": "basic",
+      "api_elements": ["UserPromptSubmit", "type: command", "${CLAUDE_PLUGIN_ROOT}", "timeout"]
+    },
+    {
+      "id": 6,
+      "name": "suggest-script-flow",
+      "description": "suggest-optimize.sh follows the correct flow: HEAD tracking, duplicate check, Python file detection, config check, runner detection, jq JSON output",
+      "complexity": "intermediate",
+      "api_elements": ["/tmp/.codeflash-last-suggested", "git rev-parse HEAD", "git diff --name-only", "jq -nc"]
+    },
+    {
+      "id": 7,
+      "name": "hook-output-format",
+      "description": "Hook scripts emit JSON with hookSpecificOutput containing hookEventName and additionalContext wrapped in <user-prompt-submit-hook> tags",
+      "complexity": "intermediate",
+      "api_elements": ["hookSpecificOutput", "hookEventName", "additionalContext", "<user-prompt-submit-hook>"]
+    }
+  ]
+}

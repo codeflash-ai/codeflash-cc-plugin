@@ -1,0 +1,17 @@
+{
+  "name": "codeflash/cc-plugin-rules",
+  "version": "0.1.0",
+  "summary": "Coding standards and conventions for the codeflash-cc-plugin",
+  "private": true,
+  "rules": {
+    "plugin-architecture": {
+      "rules": "rules/plugin-architecture.md"
+    },
+    "agent-design": {
+      "rules": "rules/agent-design.md"
+    },
+    "hook-and-script-patterns": {
+      "rules": "rules/hook-and-script-patterns.md"
+    }
+  }
+}

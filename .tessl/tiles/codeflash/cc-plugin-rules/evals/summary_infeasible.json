@@ -1,0 +1,5 @@
+{
+  "package_name": "cc-plugin-rules",
+  "infeasible_scenarios": [],
+  "notes": "All 3 scenarios are feasible. Each tests realistic plugin development tasks that an agent with internalized rules should complete. No scenarios require external services or live APIs."
+}

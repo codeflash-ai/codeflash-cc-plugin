@@ -1,0 +1,1 @@
+check-hooks-json-path, verify-script-permissions, test-script-manually, check-jq-output

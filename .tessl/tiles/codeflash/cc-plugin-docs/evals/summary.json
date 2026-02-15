@@ -1,0 +1,47 @@
+{
+  "package_name": "cc-plugin-docs",
+  "total_scenarios": 3,
+  "total_capabilities_tested": 8,
+  "scenarios": [
+    {
+      "id": 1,
+      "name": "Explain How /optimize Works End-to-End",
+      "description": "Trace the full path from user typing /optimize to codeflash results, covering skill system, agent spawning, and the 6-step workflow",
+      "capabilities_tested": [2, 3, 4, 5],
+      "capability_names": ["skill-frontmatter-fields", "skill-agent-spawning", "optimizer-six-step-workflow", "optimizer-cli-flags"],
+      "rules_covered": ["skill-system", "optimizer-agent-workflow"]
+    },
+    {
+      "id": 2,
+      "name": "Troubleshoot Hook Not Suggesting Optimization",
+      "description": "Diagnose why the auto-suggest hook is not firing after Python commits, walking through the hook lifecycle and script flow",
+      "capabilities_tested": [6, 7],
+      "capability_names": ["hook-event-and-structure", "suggest-script-lifecycle"],
+      "rules_covered": ["hook-lifecycle"]
+    },
+    {
+      "id": 3,
+      "name": "Register Plugin in a New Marketplace",
+      "description": "Prepare the plugin for registration in a hypothetical new marketplace, requiring understanding of both manifest schemas and versioning",
+      "capabilities_tested": [0, 1],
+      "capability_names": ["plugin-json-schema", "marketplace-json-schema"],
+      "rules_covered": ["plugin-manifest"]
+    }
+  ],
+  "capability_coverage": {
+    "0": {"name": "plugin-json-schema", "tested_in": [3]},
+    "1": {"name": "marketplace-json-schema", "tested_in": [3]},
+    "2": {"name": "skill-frontmatter-fields", "tested_in": [1]},
+    "3": {"name": "skill-agent-spawning", "tested_in": [1]},
+    "4": {"name": "optimizer-six-step-workflow", "tested_in": [1]},
+    "5": {"name": "optimizer-cli-flags", "tested_in": [1]},
+    "6": {"name": "hook-event-and-structure", "tested_in": [2]},
+    "7": {"name": "suggest-script-lifecycle", "tested_in": [2]}
+  },
+  "rules_coverage": {
+    "plugin-manifest": [3],
+    "skill-system": [1],
+    "optimizer-agent-workflow": [1],
+    "hook-lifecycle": [2]
+  }
+}

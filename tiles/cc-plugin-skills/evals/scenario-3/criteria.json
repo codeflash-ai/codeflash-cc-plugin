@@ -1,0 +1,26 @@
+{
+  "context": "Tests whether the agent follows the publish-new-version skill to release a new version with correct version sync",
+  "type": "weighted_checklist",
+  "checklist": [
+    {
+      "name": "Version sync across manifests",
+      "description": "plugin.json version is 0.2.0, marketplace.json metadata.version is 0.2.0, marketplace.json plugins[0].version is 0.2.0. All three match exactly.",
+      "max_score": 40
+    },
+    {
+      "name": "Atomic commit",
+      "description": "Single commit containing all version bumps. Commit message follows conventional format: chore: bump version to 0.2.0.",
+      "max_score": 30
+    },
+    {
+      "name": "Git tag",
+      "description": "Git tag v0.2.0 is created matching the version number.",
+      "max_score": 20
+    },
+    {
+      "name": "README consideration",
+      "description": "README is reviewed and updated if user-facing changes need documentation. At minimum, acknowledges the README should be checked.",
+      "max_score": 10
+    }
+  ]
+}

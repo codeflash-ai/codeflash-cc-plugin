@@ -1,0 +1,26 @@
+{
+  "context": "Tests understanding of the hook lifecycle from event firing through script execution and JSON output",
+  "type": "weighted_checklist",
+  "checklist": [
+    {
+      "name": "Hook event and structure",
+      "description": "Explains UserPromptSubmit fires on each user prompt, hooks.json structure with command type, ${CLAUDE_PLUGIN_ROOT} resolution, and 5-second timeout.",
+      "max_score": 25
+    },
+    {
+      "name": "Script flow walkthrough",
+      "description": "Walks through suggest-optimize.sh steps: HEAD tracking (/tmp/.codeflash-last-suggested), duplicate check, git diff for .py files, pyproject.toml check, runner detection, jq output.",
+      "max_score": 40
+    },
+    {
+      "name": "Failure diagnosis",
+      "description": "Identifies likely causes: stale HEAD tracker file, script not executable (chmod +x), jq not installed, no Python files in the specific diff range, PREV commit not ancestor of HEAD.",
+      "max_score": 25
+    },
+    {
+      "name": "Output format knowledge",
+      "description": "Describes the JSON output format: hookSpecificOutput with hookEventName and additionalContext containing <user-prompt-submit-hook> wrapped message.",
+      "max_score": 10
+    }
+  ]
+}

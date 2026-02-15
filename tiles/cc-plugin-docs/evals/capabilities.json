@@ -1,0 +1,62 @@
+{
+  "package_name": "cc-plugin-docs",
+  "total_capabilities": 8,
+  "capabilities": [
+    {
+      "id": 0,
+      "name": "plugin-json-schema",
+      "description": "Knows plugin.json fields: name, description, version, author (name/url), repository, homepage, license, keywords",
+      "complexity": "basic",
+      "api_elements": ["plugin.json", "name", "version", "author", "license"]
+    },
+    {
+      "id": 1,
+      "name": "marketplace-json-schema",
+      "description": "Knows marketplace.json structure: $schema, name, owner, metadata, plugins array with source field and category",
+      "complexity": "basic",
+      "api_elements": ["marketplace.json", "$schema", "owner", "metadata", "plugins", "source", "category"]
+    },
+    {
+      "id": 2,
+      "name": "skill-frontmatter-fields",
+      "description": "Knows SKILL.md YAML frontmatter fields: name, description, user-invocable, argument-hint, context (fork/inline), agent, allowed-tools",
+      "complexity": "basic",
+      "api_elements": ["name", "user-invocable", "argument-hint", "context", "agent", "allowed-tools"]
+    },
+    {
+      "id": 3,
+      "name": "skill-agent-spawning",
+      "description": "Understands how skills spawn agents: context: fork creates isolated conversation, agent field references plugin:agent-name, $ARGUMENTS substitution in prompt template",
+      "complexity": "intermediate",
+      "api_elements": ["context: fork", "agent: codeflash:optimizer", "$ARGUMENTS"]
+    },
+    {
+      "id": 4,
+      "name": "optimizer-six-step-workflow",
+      "description": "Knows the 6-step optimizer workflow: detect runner, verify setup, verify install, parse prompt, run codeflash, report results",
+      "complexity": "intermediate",
+      "api_elements": ["detect runner", "verify setup", "verify install", "parse prompt", "run codeflash", "report results"]
+    },
+    {
+      "id": 5,
+      "name": "optimizer-cli-flags",
+      "description": "Knows codeflash CLI flags: --worktree (always used), --file, --function, --all, --no-pr, --effort, and the 10-minute timeout",
+      "complexity": "basic",
+      "api_elements": ["--worktree", "--file", "--function", "--all", "--no-pr", "--effort", "timeout: 600000"]
+    },
+    {
+      "id": 6,
+      "name": "hook-event-and-structure",
+      "description": "Knows UserPromptSubmit event fires on each prompt, hooks.json structure with event keys, hook groups, type: command, ${CLAUDE_PLUGIN_ROOT}, timeout in seconds",
+      "complexity": "basic",
+      "api_elements": ["UserPromptSubmit", "hooks.json", "type: command", "${CLAUDE_PLUGIN_ROOT}"]
+    },
+    {
+      "id": 7,
+      "name": "suggest-script-lifecycle",
+      "description": "Knows suggest-optimize.sh flow: HEAD tracking, duplicate check, Python diff detection, config check, runner detection, jq JSON output with <user-prompt-submit-hook> tags",
+      "complexity": "intermediate",
+      "api_elements": ["/tmp/.codeflash-last-suggested", "git rev-parse HEAD", "hookSpecificOutput", "<user-prompt-submit-hook>"]
+    }
+  ]
+}

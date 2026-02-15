@@ -1,0 +1,46 @@
+{
+  "package_name": "cc-plugin-rules",
+  "total_scenarios": 3,
+  "total_capabilities_tested": 8,
+  "scenarios": [
+    {
+      "id": 1,
+      "name": "Add a New Agent for Code Review",
+      "description": "Create a new agent that reviews Python code quality, following the plugin directory structure, agent frontmatter conventions, and detect-verify-execute workflow pattern",
+      "capabilities_tested": [0, 2, 3, 4],
+      "capability_names": ["plugin-directory-layout", "agent-frontmatter-format", "detect-verify-execute-workflow", "agent-error-handling"],
+      "rules_covered": ["plugin-architecture", "agent-design"]
+    },
+    {
+      "id": 2,
+      "name": "Modify the Commit Hook to Support Monorepos",
+      "description": "Update the suggest-optimize.sh script to detect Python changes in monorepo subdirectories and modify hooks.json to add a configuration parameter",
+      "capabilities_tested": [5, 6, 7],
+      "capability_names": ["hooks-json-structure", "suggest-script-flow", "hook-output-format"],
+      "rules_covered": ["hook-and-script-patterns"]
+    },
+    {
+      "id": 3,
+      "name": "Add Package Manager Support for Conda",
+      "description": "Extend the plugin to support conda as a package manager, updating the agent workflow, hook script runner detection, and plugin manifest",
+      "capabilities_tested": [0, 1, 3, 6],
+      "capability_names": ["plugin-directory-layout", "manifest-versioning", "detect-verify-execute-workflow", "suggest-script-flow"],
+      "rules_covered": ["plugin-architecture", "agent-design", "hook-and-script-patterns"]
+    }
+  ],
+  "capability_coverage": {
+    "0": {"name": "plugin-directory-layout", "tested_in": [1, 3]},
+    "1": {"name": "manifest-versioning", "tested_in": [3]},
+    "2": {"name": "agent-frontmatter-format", "tested_in": [1]},
+    "3": {"name": "detect-verify-execute-workflow", "tested_in": [1, 3]},
+    "4": {"name": "agent-error-handling", "tested_in": [1]},
+    "5": {"name": "hooks-json-structure", "tested_in": [2]},
+    "6": {"name": "suggest-script-flow", "tested_in": [2, 3]},
+    "7": {"name": "hook-output-format", "tested_in": [2]}
+  },
+  "rules_coverage": {
+    "plugin-architecture": [1, 3],
+    "agent-design": [1, 3],
+    "hook-and-script-patterns": [2, 3]
+  }
+}

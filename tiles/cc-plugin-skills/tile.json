@@ -1,0 +1,17 @@
+{
+  "name": "codeflash/cc-plugin-skills",
+  "version": "0.1.0",
+  "summary": "Procedural workflows for developing and maintaining the codeflash-cc-plugin",
+  "private": true,
+  "skills": {
+    "add-cli-flag": {
+      "path": "skills/add-cli-flag/SKILL.md"
+    },
+    "debug-hook-failure": {
+      "path": "skills/debug-hook-failure/SKILL.md"
+    },
+    "publish-new-version": {
+      "path": "skills/publish-new-version/SKILL.md"
+    }
+  }
+}

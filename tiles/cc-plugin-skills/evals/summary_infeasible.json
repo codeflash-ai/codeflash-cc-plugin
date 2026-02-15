@@ -1,0 +1,5 @@
+{
+  "package_name": "cc-plugin-skills",
+  "infeasible_scenarios": [],
+  "notes": "All 3 scenarios are feasible. Each tests a procedural workflow that an agent following the skill steps should complete. No scenarios require external services."
+}

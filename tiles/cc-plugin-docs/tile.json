@@ -1,0 +1,7 @@
+{
+  "name": "codeflash/cc-plugin-docs",
+  "version": "0.1.0",
+  "summary": "Internal documentation for the codeflash Claude Code plugin",
+  "private": true,
+  "docs": "docs/index.md"
+}

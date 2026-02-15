@@ -1,0 +1,26 @@
+{
+  "context": "Tests whether the agent correctly modifies hook infrastructure following hooks.json structure, script flow patterns, and output format conventions",
+  "type": "weighted_checklist",
+  "checklist": [
+    {
+      "name": "hooks.json structure",
+      "description": "hooks.json maintains correct structure: UserPromptSubmit event, hooks array, type: command, ${CLAUDE_PLUGIN_ROOT} path, timeout in seconds. Any new configuration follows the same patterns.",
+      "max_score": 25
+    },
+    {
+      "name": "Script flow preserved",
+      "description": "suggest-optimize.sh still follows the correct flow: HEAD tracking with /tmp/.codeflash-last-suggested, duplicate check, Python file detection (now scoped), config check, runner detection. Uses set -euo pipefail.",
+      "max_score": 35
+    },
+    {
+      "name": "Hook output format",
+      "description": "Script output is valid JSON via jq -nc with hookSpecificOutput containing hookEventName and additionalContext. The additionalContext still uses <user-prompt-submit-hook> wrapper.",
+      "max_score": 25
+    },
+    {
+      "name": "Backward compatibility",
+      "description": "When CODEFLASH_SCOPE is not set, the script behaves identically to the original: detects all Python file changes in the repo.",
+      "max_score": 15
+    }
+  ]
+}

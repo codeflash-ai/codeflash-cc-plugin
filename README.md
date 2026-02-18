@@ -6,7 +6,7 @@ A minimal Claude Code plugin that runs [Codeflash](https://codeflash.ai) as a ba
 
 - Claude Code v2.1.38 or later
 - [codeflash](https://pypi.org/project/codeflash/) installed in your project
-- Project initialized with `codeflash init` (creates `[tool.codeflash]` in `pyproject.toml`)
+- If your project isn't initialized yet, the plugin will automatically run `codeflash init` when needed
 
 ## Installation
 
@@ -96,7 +96,7 @@ The plugin is a thin wrapper around the `codeflash` CLI:
 
 1. `/optimize` spawns a background optimizer agent
 2. The agent detects your project's package manager (uv, poetry, pdm, pipenv)
-3. Verifies codeflash is installed and configured
+3. Verifies codeflash is installed; if not configured, automatically runs `codeflash init`
 4. Runs the `codeflash` CLI with the appropriate flags
 5. Reports results (optimizations found, PRs created)
 

@@ -26,10 +26,15 @@ Check for lock files at the project root (in order):
 
 ### 2. Verify Setup
 
-Grep `pyproject.toml` for `[tool.codeflash]`. If missing, tell the user:
-> Codeflash is not configured in this project. Run `codeflash init` to set it up.
+Grep `pyproject.toml` for `[tool.codeflash]`. If missing, automatically initialize codeflash:
 
-Then stop.
+1. Tell the user: "Codeflash is not configured in this project. Running `codeflash init` to set it up..."
+2. Run `<runner> codeflash init` with a **2-minute timeout** (`timeout: 120000`).
+3. After init completes, grep `pyproject.toml` again for `[tool.codeflash]` to confirm it succeeded.
+4. If init failed or the config section is still missing, tell the user:
+   > `codeflash init` did not complete successfully. Please run it manually to configure your project.
+   Then stop.
+5. If successful, tell the user "Codeflash initialized successfully." and continue to the next step.
 
 ### 3. Verify Installation
 
@@ -84,6 +89,6 @@ After codeflash finishes, summarize:
 ## Error Handling
 
 - **Exit 127**: Codeflash not installed — provide installation instructions
-- **Not configured**: Tell user to run `codeflash init`
+- **Not configured**: Automatically run `codeflash init`; if init fails, tell user to run it manually
 - **No optimizations found**: Normal — not all code can be optimized, report this clearly
 - **"Attempting to repair broken tests..."**: Normal codeflash behavior, not an error

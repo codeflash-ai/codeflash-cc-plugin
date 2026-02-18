@@ -67,11 +67,13 @@ Execute the appropriate command with a **10-minute timeout** (`timeout: 600000`)
 
 ### 6. Report Results
 
-After codeflash finishes, summarize:
-1. Whether optimizations were found
-2. What was optimized (files, functions)
-3. Performance improvements if reported
-4. Whether a PR was created
+After codeflash finishes, present the results to the user:
+
+1. **Show the code diff** — Display the before/after code changes that codeflash produced using a fenced diff code block. If codeflash output includes a diff, reproduce it. If it applied changes directly, use `git diff` to capture what changed and show it.
+2. **Show the explanation** — Include any explanation or reasoning codeflash provided about why the optimization is faster.
+3. **Performance numbers** — Include any benchmark or performance improvement numbers reported (e.g., speedup factor, time saved).
+4. **Summary** — Note which files and functions were optimized, and whether a PR was created.
+5. If no optimizations were found, tell the user clearly — not all code can be optimized.
 
 ## What This Agent Does NOT Do
 

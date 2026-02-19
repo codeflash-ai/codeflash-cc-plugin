@@ -1,15 +1,26 @@
 def sorter(arr):
-    """Sort a sequence in place and return it."""
+    """Sort a sequence in-place and return it."""
     print("codeflash stdout: Sorting list")
-    # Prefer the built-in in-place sort where available (O(n log n)).
-    # If no sort() method is present, compute a sorted sequence and
-    # write it back element-wise to preserve in-place mutation semantics.
+    # Fast path for built-in lists: use the highly optimized C implementation.
+    if isinstance(arr, list):
+        arr.sort()
+        print(f"result: {arr}")
+        return arr
+
+    # If the object exposes an in-place sort method, prefer it to preserve semantics.
     sort_method = getattr(arr, "sort", None)
     if callable(sort_method):
         sort_method()
-    else:
-        sorted_seq = sorted(arr)
-        for i in range(len(sorted_seq)):
-            arr[i] = sorted_seq[i]
+        print(f"result: {arr}")
+        return arr
+
+    # Fallback: create a sorted list and assign elements back into the original object.
+    # This preserves in-place mutation of the provided object (and will raise the same
+    # assignment-related exceptions for immutable sequences such as tuples).
+    n = len(arr)
+    sorted_arr = sorted(arr)
+    for i in range(n):
+        arr[i] = sorted_arr[i]
+
     print(f"result: {arr}")
     return arr

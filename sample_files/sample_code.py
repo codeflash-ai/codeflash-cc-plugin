@@ -1,20 +1,10 @@
 import numpy as np
 
 def tridiagonal_solve(a: np.ndarray, b: np.ndarray, c: np.ndarray, d: np.ndarray) -> np.ndarray:
-    """Solve a tridiagonal system of equations using the Thomas algorithm.
+    """Solve a tridiagonal system Ax = d using the Thomas algorithm.
 
-    Solves Ax = d where A is a tridiagonal matrix defined by its diagonals.
-    Uses forward sweep to eliminate the lower diagonal, then back substitution
-    to compute the solution. Input arrays are not modified.
-
-    Args:
-        a: Lower diagonal of length n-1 (below the main diagonal).
-        b: Main diagonal of length n.
-        c: Upper diagonal of length n-1 (above the main diagonal).
-        d: Right-hand side vector of length n.
-
-    Returns:
-        Solution vector x of length n.
+    Takes lower (a), main (b), upper (c) diagonals and right-hand side (d).
+    Returns the solution vector x. Does not modify inputs.
     """
     n = len(b)
 

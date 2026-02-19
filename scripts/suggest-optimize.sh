@@ -58,7 +58,7 @@ Run the following command as a background Bash task (run_in_background: true):
 
 ENDMSG
 
-MESSAGE="${MESSAGE}  ${RUNNER} codeflash --worktree
+MESSAGE="${MESSAGE}  ${RUNNER} codeflash --worktree --no-pr
 
 Tell the user codeflash is optimizing in the background, then answer their prompt as normal.
 

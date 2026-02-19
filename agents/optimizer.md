@@ -33,7 +33,7 @@ Then stop.
 
 ### 3. Verify Installation
 
-Run `<runner> codeflash --worktree --version`. If it fails (exit code non-zero), tell the user:
+Run `<runner> codeflash --worktree --no-pr --version`. If it fails (exit code non-zero), tell the user:
 > Codeflash is not installed. Install it with:
 > - uv: `uv add codeflash`
 > - poetry: `poetry add codeflash`

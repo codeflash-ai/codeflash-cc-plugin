@@ -69,11 +69,12 @@ Execute the appropriate command with a **10-minute timeout** (`timeout: 600000`)
 
 After codeflash finishes, present the results to the user:
 
-1. **Show the code diff** — Display the before/after code changes that codeflash produced using a fenced diff code block. If codeflash output includes a diff, reproduce it. If it applied changes directly, use `git diff` to capture what changed and show it.
-2. **Show the explanation** — Include any explanation or reasoning codeflash provided about why the optimization is faster.
-3. **Performance numbers** — Include any benchmark or performance improvement numbers reported (e.g., speedup factor, time saved).
-4. **Summary** — Note which files and functions were optimized, and whether a PR was created.
-5. If no optimizations were found, tell the user clearly — not all code can be optimized.
+1. **Parse codeflash output** — Identify which files and functions were optimized, the explanation of why the new code is faster, and any performance/benchmark numbers.
+2. **Show explanation and performance numbers** — Tell the user what codeflash found: which functions were optimized, why the new code is faster, and the speedup numbers (e.g., "2.5x faster", "reduced from 120ms to 48ms").
+3. **Apply changes via Edit tool** — For each optimized file, use the `Edit` tool to apply the optimized code to the user's working tree. This gives the user the standard Claude Code diff acceptance prompt so they can review, accept, or reject each change. Read the original file first, then use Edit to replace the old function/code with the optimized version from codeflash's output.
+4. If no optimizations were found, tell the user clearly — not all code can be optimized.
+
+**IMPORTANT**: Do NOT just print the diff as text. You MUST use the Edit tool to apply changes so the user gets the standard accept/reject prompt in Claude Code.
 
 ## What This Agent Does NOT Do
 

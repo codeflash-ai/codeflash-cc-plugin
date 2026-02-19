@@ -62,12 +62,12 @@ MESSAGE="${MESSAGE}  ${RUNNER} codeflash --worktree
 
 Tell the user codeflash is optimizing in the background, then answer their prompt as normal.
 
-IMPORTANT: Once the background task completes, you MUST check its output and present the results to the user. Specifically:
+IMPORTANT: Once the background task completes, you MUST check its output and present the results to the user:
 1. Read the background task output.
-2. If optimizations were found, show the user the code diff (before/after) and the explanation of changes codeflash produced.
-3. Include any performance improvement numbers reported.
+2. If optimizations were found, tell the user what was optimized, why it is faster, and the performance numbers.
+3. Apply each optimized change using the Edit tool so the user sees the standard Claude Code diff acceptance prompt and can accept or reject each optimization.
 4. If no optimizations were found, let the user know briefly.
-Do NOT silently discard the codeflash output — the user needs to see the diff and explanation.
+Do NOT just print the diff as text — use the Edit tool so the user gets the accept/reject prompt.
 </user-prompt-submit-hook>"
 
 jq -nc --arg ctx "$MESSAGE" '{"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": $ctx}}'

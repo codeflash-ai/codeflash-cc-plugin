@@ -25,8 +25,8 @@ tools: Read, Glob, Grep, Bash  # Comma-separated tool list
 All agents follow a detect-verify-execute pattern:
 
 1. **Detect runner** — Check lock files (uv.lock, poetry.lock, pdm.lock, Pipfile.lock) to determine the package runner.
-2. **Verify setup** — Confirm `[tool.codeflash]` exists in pyproject.toml. Stop with instructions if missing.
-3. **Verify install** — Run `<runner> codeflash --worktree --version`. Stop with install instructions if it fails.
+2. **Verify install** — Run `<runner> codeflash --version`. Stop with runner-specific install instructions if it fails.
+3. **Verify setup** — Confirm `[tool.codeflash]` exists in pyproject.toml. Stop with instructions if missing.
 4. **Parse prompt** — Extract file path, function name, and flags from the task arguments.
 5. **Run codeflash** — Execute the CLI command with a 10-minute timeout (`timeout: 600000`).
 6. **Report results** — Summarize what was optimized, performance gains, and PR status.

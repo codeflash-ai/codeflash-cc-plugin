@@ -24,20 +24,21 @@ Check for lock files at the project root (in order):
 - `Pipfile.lock` → use `pipenv run`
 - None found → run `codeflash` directly
 
-### 2. Verify Setup
+### 2. Verify Installation
 
-Grep `pyproject.toml` for `[tool.codeflash]`. If missing, tell the user:
-> Codeflash is not configured in this project. Run `codeflash init` to set it up.
+Run `<runner> codeflash --version`. If it fails (exit code non-zero), tell the user to install it using the runner detected in step 1:
+- `uv run` → `uv add codeflash`
+- `poetry run` → `poetry add codeflash`
+- `pdm run` → `pdm add codeflash`
+- `pipenv run` → `pipenv install codeflash`
+- direct → `pip install codeflash`
 
 Then stop.
 
-### 3. Verify Installation
+### 3. Verify Setup
 
-Run `<runner> codeflash --worktree --version`. If it fails (exit code non-zero), tell the user:
-> Codeflash is not installed. Install it with:
-> - uv: `uv add codeflash`
-> - poetry: `poetry add codeflash`
-> - pip: `pip install codeflash`
+Grep `pyproject.toml` for `[tool.codeflash]`. If missing, tell the user:
+> Codeflash is not configured in this project. Run `codeflash init` to set it up.
 
 Then stop.
 

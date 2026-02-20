@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# UserPromptSubmit hook: detect Python commits via git history and tell Claude
-# to run codeflash as a background Bash task. Works regardless of how the commit
-# was made (direct, skill, agent, external).
+# PostToolUse hook (Bash): detect Python commits via git history and tell Claude
+# to run codeflash as a background Bash task. Only fires after Bash tool calls,
+# so it catches commits made via Claude's Bash tool.
 
 set -euo pipefail
+
+# Consume stdin (PostToolUse pipes tool input/output via stdin)
+cat > /dev/null
 
 LAST_SEEN="/tmp/.codeflash-last-suggested"
 
@@ -50,17 +53,10 @@ else
   RUNNER=""
 fi
 
-read -r -d '' MESSAGE << 'ENDMSG' || true
-<user-prompt-submit-hook>
-BLOCKING REQUIREMENT — you MUST do this BEFORE responding to the user's message:
+MESSAGE="Python files were changed in the latest commit. Run the following command as a background Bash task (run_in_background: true):
 
-Run the following command as a background Bash task (run_in_background: true):
+  ${RUNNER} codeflash --worktree
 
-ENDMSG
+Tell the user codeflash is optimizing in the background, then continue as normal."
 
-MESSAGE="${MESSAGE}  ${RUNNER} codeflash --worktree
-
-Tell the user codeflash is optimizing in the background, then answer their prompt as normal.
-</user-prompt-submit-hook>"
-
-jq -nc --arg ctx "$MESSAGE" '{"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": $ctx}}'
+jq -nc --arg ctx "$MESSAGE" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'

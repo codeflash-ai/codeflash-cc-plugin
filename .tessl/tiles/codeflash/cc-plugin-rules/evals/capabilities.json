@@ -26,9 +26,9 @@
     {
       "id": 3,
       "name": "detect-verify-execute-workflow",
-      "description": "Agents follow the 6-step workflow: detect runner from lock files, verify setup via pyproject.toml, verify install, parse prompt, run codeflash with --worktree, report results",
+      "description": "Agents follow the 6-step workflow: detect runner from lock files, verify setup via pyproject.toml, verify install, parse prompt, run codeflash with --worktree --no-pr , report results",
       "complexity": "intermediate",
-      "api_elements": ["uv.lock", "poetry.lock", "[tool.codeflash]", "--worktree", "timeout: 600000"]
+      "api_elements": ["uv.lock", "poetry.lock", "[tool.codeflash]", "--worktree", "--no-pr","timeout: 600000"]
     },
     {
       "id": 4,

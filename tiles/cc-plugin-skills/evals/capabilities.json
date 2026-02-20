@@ -21,7 +21,7 @@
       "name": "update-agent-run-section",
       "description": "Updates optimizer agent Step 5 (Run Codeflash) command templates to include new flags",
       "complexity": "basic",
-      "api_elements": ["agents/optimizer.md", "Run Codeflash", "codeflash --worktree"]
+      "api_elements": ["agents/optimizer.md", "Run Codeflash", "codeflash --worktree --no-pr"]
     },
     {
       "id": 3,

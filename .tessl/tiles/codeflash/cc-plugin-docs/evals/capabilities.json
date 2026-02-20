@@ -40,7 +40,7 @@
     {
       "id": 5,
       "name": "optimizer-cli-flags",
-      "description": "Knows codeflash CLI flags: --worktree (always used), --file, --function, --all, --no-pr, --effort, and the 10-minute timeout",
+      "description": "Knows codeflash CLI flags: --worktree (always used), --file, --function, --all, --no-pr (always used), --effort, and the 10-minute timeout",
       "complexity": "basic",
       "api_elements": ["--worktree", "--file", "--function", "--all", "--no-pr", "--effort", "timeout: 600000"]
     },

@@ -9,7 +9,7 @@
     },
     {
       "name": "Detect-verify-execute workflow",
-      "description": "Agent body follows the 6-step pattern: detect runner from lock files (uv, poetry, pdm, pipenv), verify [tool.codeflash] in pyproject.toml, verify install, parse prompt arguments, execute command with --worktree, report results.",
+      "description": "Agent body follows the 6-step pattern: detect runner from lock files (uv, poetry, pdm, pipenv), verify [tool.codeflash] in pyproject.toml, verify install, parse prompt arguments, execute command with --worktree --no-pr, report results.",
       "max_score": 30
     },
     {

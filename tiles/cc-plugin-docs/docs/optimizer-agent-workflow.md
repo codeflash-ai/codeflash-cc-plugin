@@ -45,13 +45,13 @@ Execute with a **10-minute timeout** (`timeout: 600000` in Bash tool):
 
 ```bash
 # Specific file
-<runner> codeflash --worktree --file <path> [--function <name>] [flags]
+<runner> codeflash --worktree --no-pr --file <path> [--function <name>] [flags]
 
 # All files
-<runner> codeflash --worktree --all [flags]
+<runner> codeflash --worktree --no-pr --all [flags]
 ```
 
-The `--worktree` flag is **always** passed. It tells codeflash to work in a separate git worktree to avoid interfering with the user's working directory.
+The `--worktree` flag is **always** passed. It tells codeflash to work in a separate git worktree to avoid interfering with the user's working directory. --no-pr flag is always used.
 
 ## Step 6: Report Results
 
@@ -63,11 +63,11 @@ After codeflash completes, the agent summarizes:
 
 ## CLI Flags Reference
 
-| Flag | Description |
-|------|-------------|
+| Flag | Description                                  |
+|------|----------------------------------------------|
 | `--worktree` | Run in a separate git worktree (always used) |
-| `--file <path>` | Target a specific Python file |
-| `--function <name>` | Target a specific function within the file |
-| `--all` | Optimize all functions in the project |
-| `--no-pr` | Skip PR creation |
-| `--effort low\|medium\|high` | Set optimization effort level |
+| `--file <path>` | Target a specific Python file                |
+| `--function <name>` | Target a specific function within the file   |
+| `--all` | Optimize all functions in the project        |
+| `--no-pr` | Skip PR creation (always used)               |
+| `--effort low\|medium\|high` | Set optimization effort level                |

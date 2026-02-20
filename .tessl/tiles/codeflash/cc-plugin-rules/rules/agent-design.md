@@ -31,7 +31,7 @@ All agents follow a detect-verify-execute pattern:
 5. **Run codeflash** — Execute the CLI command with a 10-minute timeout (`timeout: 600000`).
 6. **Report results** — Summarize what was optimized, performance gains, and PR status.
 
-Always pass `--worktree` to all codeflash CLI invocations.
+Always pass `--worktree` and `--no-pr` to all codeflash CLI invocations.
 
 ## Error Handling
 

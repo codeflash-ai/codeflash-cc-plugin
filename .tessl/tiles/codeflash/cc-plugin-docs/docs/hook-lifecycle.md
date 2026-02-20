@@ -86,4 +86,4 @@ jq -nc --arg ctx "$MESSAGE" \
 
 Emits a JSON object with `hookSpecificOutput` containing the context message wrapped in `<user-prompt-submit-hook>` tags. Claude Code treats content in these tags as blocking requirements — the agent must execute them before responding to the user's actual prompt.
 
-The injected message instructs Claude to run `<runner> codeflash --worktree` as a background Bash task, then continue answering the user's prompt normally.
+The injected message instructs Claude to run `<runner> codeflash --worktree --no-pr` as a background Bash task, then continue answering the user's prompt normally.

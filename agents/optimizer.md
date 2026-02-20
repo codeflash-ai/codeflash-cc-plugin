@@ -68,22 +68,12 @@ Always use the --no-pr flag.
 
 ### 6. Report Results
 
-After codeflash finishes, present the results to the user:
+After codeflash finishes, output the results clearly:
 
 1. **Parse codeflash output** — Identify which files and functions were optimized, the explanation of why the new code is faster, and any performance/benchmark numbers.
-2. **Show explanation and performance numbers** — Tell the user what codeflash found: which functions were optimized, why the new code is faster, and the speedup numbers (e.g., "2.5x faster", "reduced from 120ms to 48ms").
-3. **Critique the change** — Read both the original code and codeflash's proposed replacement, then present your own independent assessment covering:
-   - **Correctness**: Does the optimized code preserve the original behavior? Flag any edge cases, off-by-one risks, changed semantics, or missing error handling.
-   - **Claimed speedup**: Are the benchmark numbers plausible given the algorithmic change? Call out numbers that seem inflated or benchmarks that may not reflect real-world usage (e.g., micro-benchmarks on trivial inputs).
-   - **Readability & maintainability**: Is the optimized code harder to understand or maintain? Note if it trades clarity for marginal gains.
-   - **Trade-offs**: Mention any costs the optimization introduces — higher memory usage, added complexity, loss of lazy evaluation, reduced generality, etc.
-   - **Verdict**: Give a clear recommendation: accept, accept with caveats, or reject — and explain why.
-
-   Present this critique to the user **before** applying changes so they can make an informed decision.
-4. **Apply changes via Edit tool** — For each optimized file, use the `Edit` tool to apply the optimized code to the user's working tree. This gives the user the standard Claude Code diff acceptance prompt so they can review, accept, or reject each change. Read the original file first, then use Edit to replace the old function/code with the optimized version from codeflash's output.
-5. If no optimizations were found, tell the user clearly — not all code can be optimized.
-
-**IMPORTANT**: Do NOT just print the diff as text. You MUST use the Edit tool to apply changes so the user gets the standard accept/reject prompt in Claude Code.
+2. **Show explanation and performance numbers** — Report which functions were optimized, why the new code is faster, and the speedup numbers (e.g., "2.5x faster", "reduced from 120ms to 48ms").
+3. **Show the optimized code** — For each optimized function, output both the original code and the proposed replacement so the caller can apply the changes.
+4. If no optimizations were found, report this clearly — not all code can be optimized.
 
 ## What This Agent Does NOT Do
 

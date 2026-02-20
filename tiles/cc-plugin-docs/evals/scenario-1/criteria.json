@@ -19,7 +19,7 @@
     },
     {
       "name": "CLI flags and command",
-      "description": "Shows the correct command with --worktree (always present), --file src/utils.py, --function my_func, --effort high, and mentions the 10-minute timeout (600000ms).",
+      "description": "Shows the correct command with --worktree (always present), --no-pr (always present), --file src/utils.py, --function my_func, --effort high, and mentions the 10-minute timeout (600000ms).",
       "max_score": 25
     }
   ]

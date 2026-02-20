@@ -33,7 +33,7 @@ Edit `agents/optimizer.md` Step 4 (Parse Task Prompt) to document the new flag:
 Edit `agents/optimizer.md` Step 5 (Run Codeflash) to include the new flag in the command templates:
 
 ```bash
-<runner> codeflash --worktree --file <path> [--new-flag <value>] [flags]
+<runner> codeflash --worktree --no-pr --file <path> [--new-flag <value>] [flags]
 ```
 
 ### 4. Update README

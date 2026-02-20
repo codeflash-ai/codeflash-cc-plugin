@@ -15,7 +15,7 @@ Write a technical walkthrough that explains:
    - How it detects the project's package manager
    - How it verifies codeflash is configured and installed
    - How it parses the arguments to build the codeflash command
-   - The exact command it would run (including --worktree flag and timeout)
+   - The exact command it would run (including --worktree and --no-pr flag and timeout)
    - How it reports results
 
 ## Expected Outputs
@@ -23,4 +23,4 @@ Write a technical walkthrough that explains:
 - Clear explanation of SKILL.md frontmatter fields: name, user-invocable, argument-hint, context: fork, agent: codeflash:optimizer, allowed-tools
 - Understanding that context: fork creates an isolated conversation
 - Correct 6-step workflow description with runner detection priority (uv > poetry > pdm > pipenv)
-- The command: `<runner> codeflash --worktree --file src/utils.py --function my_func --effort high` with 10-minute timeout
+- The command: `<runner> codeflash --worktree --no-pr --file src/utils.py --function my_func --effort high` with 10-minute timeout

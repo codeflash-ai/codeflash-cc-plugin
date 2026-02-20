@@ -30,10 +30,16 @@ description: |
   </commentary>
   </example>
 
-model: inherit
 maxTurns: 15
 color: cyan
-tools: ["Read", "Glob", "Grep", "Bash"]
+tools: Read, Glob, Grep, Bash
+hooks:
+  PostToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: "${CLAUDE_PLUGIN_ROOT}/scripts/surface-codeflash-output.sh"
+          timeout: 10
 ---
 
 You are a thin-wrapper agent that runs the codeflash CLI to optimize Python code.
@@ -78,20 +84,21 @@ Extract from the prompt you receive:
 - **--effort low|medium|high**: Optimization effort level
 - Any other flags: pass through to codeflash
 
-If no file path is provided, run codeflash without `--file` — it will detect changed files itself.
-
-> `--all` can be passed to optimize every function in the project. Use `--file` for targeted runs.
+If no file and no `--all` flag, run codeflash without `--file` or `--all` to let it detect changed files automatically. Only use `--all` when explicitly requested.
 
 ### 5. Run Codeflash
 
 Execute the appropriate command with a **10-minute timeout** (`timeout: 600000`):
 
 ```bash
-# Default (changed files)
-<runner> codeflash --agent --worktree [flags]
+# Default: let codeflash detect changed files
+<runner> codeflash --subagent [flags]
 
 # Specific file
-<runner> codeflash --agent --worktree --file <path> [--function <name>] [flags]
+<runner> codeflash --subagent --file <path> [--function <name>] [flags]
+
+# All files (only when explicitly requested with --all)
+<runner> codeflash --subagent --all [flags]
 ```
 
 ### 6. Report Results

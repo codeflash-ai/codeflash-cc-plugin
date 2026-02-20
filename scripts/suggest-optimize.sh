@@ -62,7 +62,7 @@ fi
 
 MESSAGE="Python files were changed in the latest commit. Run the following command as a background Bash task (run_in_background: true):
 
-  ${RUNNER} codeflash --agent --worktree
+  ${RUNNER} codeflash --subagent
 
 Tell the user codeflash is optimizing in the background, then continue as normal."
 

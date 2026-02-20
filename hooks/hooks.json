@@ -1,7 +1,10 @@
 {
   "hooks": {
-    "UserPromptSubmit": [
+    "PostToolUse": [
       {
+        "matcher": {
+          "toolName": "Bash"
+        },
         "hooks": [
           {
             "type": "command",

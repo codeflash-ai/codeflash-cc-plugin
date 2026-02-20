@@ -2,9 +2,7 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": {
-          "toolName": "Bash"
-        },
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",

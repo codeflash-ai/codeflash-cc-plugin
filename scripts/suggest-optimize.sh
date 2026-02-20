@@ -5,10 +5,17 @@
 
 set -euo pipefail
 
-# Consume stdin (PostToolUse pipes tool input/output via stdin)
-cat > /dev/null
+# PostToolUse pipes tool input/output as JSON via stdin.
+# Only proceed if the Bash command was a git commit.
+INPUT=$(cat)
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+if ! echo "$COMMAND" | grep -qE '(^|&&|\|\||;)\s*git\s+commit\b'; then
+  exit 0
+fi
 
-LAST_SEEN="/tmp/.codeflash-last-suggested"
+# Per-project tracker keyed on repo root
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+LAST_SEEN="/tmp/.codeflash-last-suggested-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
 
 # Get current HEAD; exit silently if not in a git repo
 HEAD=$(git rev-parse HEAD 2>/dev/null) || exit 0
@@ -40,23 +47,6 @@ if ! grep -q '\[tool\.codeflash\]' pyproject.toml 2>/dev/null; then
   exit 0
 fi
 
-# Detect project runner
-if [ -f "uv.lock" ]; then
-  RUNNER="uv run"
-elif [ -f "poetry.lock" ]; then
-  RUNNER="poetry run"
-elif [ -f "pdm.lock" ]; then
-  RUNNER="pdm run"
-elif [ -f "Pipfile.lock" ]; then
-  RUNNER="pipenv run"
-else
-  RUNNER=""
-fi
-
-MESSAGE="Python files were changed in the latest commit. Run the following command as a background Bash task (run_in_background: true):
-
-  ${RUNNER} codeflash --worktree
-
-Tell the user codeflash is optimizing in the background, then continue as normal."
+MESSAGE="Python files were changed in the latest commit. Run /optimize --all in the background to check for performance improvements. Tell the user codeflash is optimizing in the background, then continue as normal."
 
 jq -nc --arg ctx "$MESSAGE" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'

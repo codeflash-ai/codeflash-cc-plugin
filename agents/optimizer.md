@@ -23,7 +23,7 @@ description: |
 
   <example>
   Context: Hook detected Python files changed in a commit
-  user: "Python files were changed in the latest commit. Use the Skill tool to invoke /optimize..."
+  user: "Python files were changed in the latest commit. Use the Task tool to optimize..."
   assistant: "I'll run codeflash optimization in the background on the changed code."
   <commentary>
   Post-commit hook triggered — the optimizer agent runs via /optimize to check for performance improvements.
@@ -74,23 +74,24 @@ Then stop.
 Extract from the prompt you receive:
 - **file path**: Python file to optimize (e.g. `src/utils.py`)
 - **function name**: Specific function to target (optional)
-- **--all**: Optimize all functions in the project
 - **--no-pr**: Skip PR creation
 - **--effort low|medium|high**: Optimization effort level
 - Any other flags: pass through to codeflash
 
-If no file and no `--all` flag, optimize all with `--all`.
+If no file path is provided, run codeflash without `--file` — it will detect changed files itself.
+
+> `--all` can be passed to optimize every function in the project. Use `--file` for targeted runs.
 
 ### 5. Run Codeflash
 
 Execute the appropriate command with a **10-minute timeout** (`timeout: 600000`):
 
 ```bash
-# Specific file
-<runner> codeflash --worktree --file <path> [--function <name>] [flags]
+# Default (changed files)
+<runner> codeflash --agent --worktree [flags]
 
-# All files
-<runner> codeflash --worktree --all [flags]
+# Specific file
+<runner> codeflash --agent --worktree --file <path> [--function <name>] [flags]
 ```
 
 ### 6. Report Results

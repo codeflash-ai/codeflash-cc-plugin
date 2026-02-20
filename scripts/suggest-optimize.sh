@@ -47,6 +47,23 @@ if ! grep -q '\[tool\.codeflash\]' pyproject.toml 2>/dev/null; then
   exit 0
 fi
 
-MESSAGE="Python files were changed in the latest commit. Run /optimize --all in the background to check for performance improvements. Tell the user codeflash is optimizing in the background, then continue as normal."
+# Detect project runner
+if [ -f "uv.lock" ]; then
+  RUNNER="uv run"
+elif [ -f "poetry.lock" ]; then
+  RUNNER="poetry run"
+elif [ -f "pdm.lock" ]; then
+  RUNNER="pdm run"
+elif [ -f "Pipfile.lock" ]; then
+  RUNNER="pipenv run"
+else
+  RUNNER=""
+fi
+
+MESSAGE="Python files were changed in the latest commit. Run the following command as a background Bash task (run_in_background: true):
+
+  ${RUNNER} codeflash --agent --worktree
+
+Tell the user codeflash is optimizing in the background, then continue as normal."
 
 jq -nc --arg ctx "$MESSAGE" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'

@@ -33,13 +33,6 @@ description: |
 maxTurns: 15
 color: cyan
 tools: Read, Glob, Grep, Bash
-hooks:
-  PostToolUse:
-    - matcher: Bash
-      hooks:
-        - type: command
-          command: "${CLAUDE_PLUGIN_ROOT}/scripts/surface-codeflash-output.sh"
-          timeout: 10
 ---
 
 You are a thin-wrapper agent that runs the codeflash CLI to optimize Python code.

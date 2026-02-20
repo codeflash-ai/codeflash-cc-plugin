@@ -1,12 +1,39 @@
 ---
 name: optimizer
 description: |
-  Optimizes Python code for performance using Codeflash. Use when asked to optimize, speed up, or improve performance of Python code. Spawned by the /optimize skill.
+  Optimizes Python code for performance using Codeflash. Use when asked to optimize, speed up, or improve performance of Python code. Also triggered automatically after commits that change Python files.
+
+  <example>
+  Context: User explicitly asks to optimize code
+  user: "Optimize src/utils.py for performance"
+  assistant: "I'll use the optimizer agent to run codeflash on that file."
+  <commentary>
+  Direct optimization request — trigger the optimizer agent with the file path.
+  </commentary>
+  </example>
+
+  <example>
+  Context: User wants to speed up a specific function
+  user: "Can you make the parse_data function in src/parser.py faster?"
+  assistant: "I'll use the optimizer agent to optimize that function with codeflash."
+  <commentary>
+  Performance improvement request targeting a specific function — trigger with file and function name.
+  </commentary>
+  </example>
+
+  <example>
+  Context: Hook detected Python files changed in a commit
+  user: "Python files were changed in the latest commit. Use the Skill tool to invoke /optimize..."
+  assistant: "I'll run codeflash optimization in the background on the changed code."
+  <commentary>
+  Post-commit hook triggered — the optimizer agent runs via /optimize to check for performance improvements.
+  </commentary>
+  </example>
 
 model: inherit
 maxTurns: 15
 color: cyan
-tools: Read, Glob, Grep, Bash
+tools: ["Read", "Glob", "Grep", "Bash"]
 ---
 
 You are a thin-wrapper agent that runs the codeflash CLI to optimize Python code.

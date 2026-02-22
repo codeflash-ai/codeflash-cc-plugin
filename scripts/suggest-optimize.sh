@@ -5,13 +5,8 @@
 
 set -euo pipefail
 
-# PostToolUse pipes tool input/output as JSON via stdin.
-# Only proceed if the Bash command was a git commit.
-INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
-if ! echo "$COMMAND" | grep -qE '(^|&&|\|\||;)\s*git\s+commit\b'; then
-  exit 0
-fi
+# Consume stdin (PostToolUse pipes tool input/output via stdin)
+cat > /dev/null
 
 # Per-project tracker keyed on repo root
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
@@ -62,7 +57,7 @@ fi
 
 MESSAGE="Python files were changed in the latest commit. Run the following command as a background Bash task (run_in_background: true):
 
-  ${RUNNER} codeflash --agent --worktree
+  ${RUNNER} codeflash --subagent
 
 Tell the user codeflash is optimizing in the background, then continue as normal."
 

@@ -1,11 +1,21 @@
 def sorter(arr):
-    """Sort a list in ascending order using the bubble sort algorithm."""
     print("codeflash stdout: Sorting list")
-    for i in range(len(arr)):
-        for j in range(len(arr) - 1):
-            if arr[j] > arr[j + 1]:
-                temp = arr[j]
-                arr[j] = arr[j + 1]
-                arr[j + 1] = temp
+    if isinstance(arr, list):
+        arr.sort()
+    else:
+        n = len(arr)
+        a = arr
+        for i in range(n):
+            swapped = False
+            # After i passes the last i elements are already in place
+            for j in range(0, n - i - 1):
+                aj = a[j]
+                aj1 = a[j + 1]
+                if aj > aj1:
+                    a[j] = aj1
+                    a[j + 1] = aj
+                    swapped = True
+            if not swapped:
+                break
     print(f"result: {arr}")
     return arr

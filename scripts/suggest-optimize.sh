@@ -5,8 +5,14 @@
 
 set -euo pipefail
 
-# Consume stdin (PostToolUse pipes tool input/output via stdin)
-cat > /dev/null
+# Read stdin (PostToolUse pipes tool input/output as JSON via stdin)
+INPUT=$(cat)
+
+# Only fire when the Bash command was a git commit
+TOOL_INPUT=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
+if ! echo "$TOOL_INPUT" | grep -q 'git commit'; then
+  exit 0
+fi
 
 # Per-project tracker keyed on repo root
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0

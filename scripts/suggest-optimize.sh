@@ -37,11 +37,6 @@ if [ -z "$PY_FILES" ]; then
   exit 0
 fi
 
-# Check if codeflash is configured in this project
-if ! grep -q '\[tool\.codeflash\]' pyproject.toml 2>/dev/null; then
-  exit 0
-fi
-
 # Detect project runner
 if [ -f "uv.lock" ]; then
   RUNNER="uv run"
@@ -53,6 +48,31 @@ elif [ -f "Pipfile.lock" ]; then
   RUNNER="pipenv run"
 else
   RUNNER=""
+fi
+
+# Check if codeflash is configured in this project
+if ! grep -q '\[tool\.codeflash\]' pyproject.toml 2>/dev/null; then
+  SETUP_MSG="Python files were changed in the latest commit, but codeflash is not configured yet.
+
+Ask the user the following two questions to set up codeflash:
+1. What is the relative path to the root of their Python module? (e.g. \".\", \"src\", \"src/mypackage\")
+2. What is the relative path to their tests folder? (e.g. \"tests\", \"test\", \"src/tests\")
+
+After getting the answers:
+- If the tests folder does not exist, create it with mkdir -p.
+- Append the following to pyproject.toml (create the file if it does not exist), substituting the user's answers:
+
+[tool.codeflash]
+# All paths are relative to this pyproject.toml's directory.
+module-root = \"<module root>\"
+tests-root = \"<tests folder>\"
+ignore-paths = []
+formatter-cmds = [\"disabled\"]
+
+Then run: ${RUNNER} codeflash --subagent"
+
+  jq -nc --arg ctx "$SETUP_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
+  exit 0
 fi
 
 MESSAGE="Python files were changed in the latest commit. Run the following command as a background Bash task (run_in_background: true):

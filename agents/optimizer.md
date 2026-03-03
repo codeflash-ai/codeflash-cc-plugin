@@ -58,14 +58,16 @@ Then detect the project runner by checking for lock files **in the project direc
 
 ### 2. Verify Installation
 
-Run `<runner> codeflash --version`. If it fails (exit code non-zero), tell the user to install it using the runner detected in step 1:
-- `uv run` → `uv add codeflash`
-- `poetry run` → `poetry add codeflash`
-- `pdm run` → `pdm add codeflash`
-- `pipenv run` → `pipenv install codeflash`
+Run `<runner> codeflash --version`. If it succeeds, proceed to Step 3.
+
+If it fails (exit code non-zero or command not found), codeflash is not installed. Ask the user whether they'd like to install it now, using the install command matching the runner detected in step 1:
+- `uv run` → `uv add --dev codeflash`
+- `poetry run` → `poetry add --group dev codeflash`
+- `pdm run` → `pdm add -dG dev codeflash`
+- `pipenv run` → `pipenv install --dev codeflash`
 - direct → `pip install codeflash`
 
-Then stop.
+If the user agrees, run the install command in the project directory. If installation succeeds, proceed to Step 3. If the user declines or installation fails, stop.
 
 ### 3. Verify Setup
 
@@ -144,7 +146,7 @@ After codeflash finishes, summarize:
 
 ## Error Handling
 
-- **Exit 127**: Codeflash not installed — provide installation instructions
+- **Exit 127 / command not found**: Codeflash not installed — ask the user to install it using the detected package manager
 - **Not configured**: Interactively ask the user for module root and tests folder, then write the config
 - **No optimizations found**: Normal — not all code can be optimized, report this clearly
 - **"Attempting to repair broken tests..."**: Normal codeflash behavior, not an error

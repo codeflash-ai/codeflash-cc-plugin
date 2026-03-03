@@ -95,6 +95,30 @@ fi
 find_pyproject
 detect_runner
 
+# Check if codeflash is installed
+CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
+if ! (cd "$CHECK_DIR" && ${RUNNER} codeflash --version) >/dev/null 2>&1; then
+  # Determine the correct install command based on the runner
+  case "$RUNNER" in
+    "uv run")      INSTALL_CMD="uv add --dev codeflash" ;;
+    "poetry run")   INSTALL_CMD="poetry add --group dev codeflash" ;;
+    "pdm run")      INSTALL_CMD="pdm add -dG dev codeflash" ;;
+    "pipenv run")   INSTALL_CMD="pipenv install --dev codeflash" ;;
+    *)              INSTALL_CMD="pip install codeflash" ;;
+  esac
+
+  INSTALL_MSG="Python files were changed in the latest commit, but codeflash is not installed.
+
+Ask the user if they'd like to install codeflash. The detected install command is:
+
+  ${INSTALL_CMD}
+
+If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to run codeflash via /optimize."
+
+  jq -nc --arg ctx "$INSTALL_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
+  exit 0
+fi
+
 # Check if codeflash is configured in this project
 if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
   # Build a human-friendly target path for the setup message

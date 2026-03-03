@@ -18,6 +18,54 @@ fi
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 LAST_SEEN="/tmp/.codeflash-last-suggested-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
 
+# Walk from $PWD upward to $REPO_ROOT looking for pyproject.toml.
+# Sets: PYPROJECT_DIR, PYPROJECT_PATH, PYPROJECT_CONFIGURED
+find_pyproject() {
+  PYPROJECT_DIR=""
+  PYPROJECT_PATH=""
+  PYPROJECT_CONFIGURED="false"
+  local search_dir="$PWD"
+  while true; do
+    if [ -f "$search_dir/pyproject.toml" ]; then
+      PYPROJECT_PATH="$search_dir/pyproject.toml"
+      PYPROJECT_DIR="$search_dir"
+      if grep -q '\[tool\.codeflash\]' "$search_dir/pyproject.toml" 2>/dev/null; then
+        PYPROJECT_CONFIGURED="true"
+      fi
+      break
+    fi
+    if [ "$search_dir" = "$REPO_ROOT" ]; then
+      break
+    fi
+    local parent
+    parent="$(dirname "$search_dir")"
+    if [ "$parent" = "$search_dir" ]; then
+      break
+    fi
+    case "$parent" in
+      "$REPO_ROOT"|"$REPO_ROOT"/*) search_dir="$parent" ;;
+      *) break ;;
+    esac
+  done
+}
+
+# Detect project runner from lock files near pyproject.toml (or CWD as fallback).
+# Sets: RUNNER
+detect_runner() {
+  local check_dir="${PYPROJECT_DIR:-$PWD}"
+  if [ -f "$check_dir/uv.lock" ]; then
+    RUNNER="uv run"
+  elif [ -f "$check_dir/poetry.lock" ]; then
+    RUNNER="poetry run"
+  elif [ -f "$check_dir/pdm.lock" ]; then
+    RUNNER="pdm run"
+  elif [ -f "$check_dir/Pipfile.lock" ]; then
+    RUNNER="pipenv run"
+  else
+    RUNNER=""
+  fi
+}
+
 # Get current HEAD; exit silently if not in a git repo
 HEAD=$(git rev-parse HEAD 2>/dev/null) || exit 0
 
@@ -43,21 +91,19 @@ if [ -z "$PY_FILES" ]; then
   exit 0
 fi
 
-# Detect project runner
-if [ -f "uv.lock" ]; then
-  RUNNER="uv run"
-elif [ -f "poetry.lock" ]; then
-  RUNNER="poetry run"
-elif [ -f "pdm.lock" ]; then
-  RUNNER="pdm run"
-elif [ -f "Pipfile.lock" ]; then
-  RUNNER="pipenv run"
-else
-  RUNNER=""
-fi
+# Discover pyproject.toml and project runner
+find_pyproject
+detect_runner
 
 # Check if codeflash is configured in this project
-if ! grep -q '\[tool\.codeflash\]' pyproject.toml 2>/dev/null; then
+if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
+  # Build a human-friendly target path for the setup message
+  if [ -n "$PYPROJECT_PATH" ]; then
+    TARGET_MSG="Append to \`$PYPROJECT_PATH\`"
+  else
+    TARGET_MSG="Create \`$REPO_ROOT/pyproject.toml\`"
+  fi
+
   SETUP_MSG="Python files were changed in the latest commit, but codeflash is not configured yet.
 
 Ask the user the following two questions to set up codeflash:
@@ -66,7 +112,7 @@ Ask the user the following two questions to set up codeflash:
 
 After getting the answers:
 - If the tests folder does not exist, create it with mkdir -p.
-- Append the following to pyproject.toml (create the file if it does not exist), substituting the user's answers:
+- ${TARGET_MSG} (create the file if it does not exist), adding the following section with the user's answers substituted:
 
 [tool.codeflash]
 # All paths are relative to this pyproject.toml's directory.
@@ -81,9 +127,16 @@ Then run: ${RUNNER} codeflash --subagent"
   exit 0
 fi
 
+# Build codeflash command, adding cd when pyproject.toml is in a parent directory
+if [ -n "$PYPROJECT_DIR" ] && [ "$PYPROJECT_DIR" != "$PWD" ]; then
+  CMD="cd $PYPROJECT_DIR && ${RUNNER} codeflash --subagent"
+else
+  CMD="${RUNNER} codeflash --subagent"
+fi
+
 MESSAGE="Python files were changed in the latest commit. Run the following command as a background Bash task (run_in_background: true):
 
-  ${RUNNER} codeflash --subagent
+  ${CMD}
 
 Tell the user codeflash is optimizing in the background, then continue as normal."
 

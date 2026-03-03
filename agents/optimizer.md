@@ -32,7 +32,7 @@ description: |
 
 maxTurns: 15
 color: cyan
-tools: Read, Glob, Grep, Bash
+tools: Read, Glob, Grep, Bash, Write, Edit
 ---
 
 You are a thin-wrapper agent that runs the codeflash CLI to optimize Python code.
@@ -63,10 +63,28 @@ Then stop.
 
 ### 3. Verify Setup
 
-Grep `pyproject.toml` for `[tool.codeflash]`. If missing, tell the user:
-> Codeflash is not configured in this project. Run `codeflash init` to set it up.
+Grep `pyproject.toml` for `[tool.codeflash]`. If the section is found, proceed to step 4.
 
-Then stop.
+If `pyproject.toml` does not exist or does not contain `[tool.codeflash]`, interactively configure it:
+
+1. **Ask the user two questions** (use AskUserQuestion or prompt directly):
+   - **Module root**: "What is the relative path to the root of your Python module?" (e.g. `.`, `src`, `src/mypackage`)
+   - **Tests folder**: "What is the relative path to your tests folder?" (e.g. `tests`, `test`, `src/tests`)
+
+2. **Validate directories**: Check whether the tests folder the user provided exists. If it does **not** exist, create it with `mkdir -p`.
+
+3. **Write the configuration**: Append the `[tool.codeflash]` section to `pyproject.toml` (create the file if it does not exist). Use exactly this format, substituting the user's answers:
+
+```toml
+[tool.codeflash]
+# All paths are relative to this pyproject.toml's directory.
+module-root = "<user's module root>"
+tests-root = "<user's tests folder>"
+ignore-paths = []
+formatter-cmds = ["disabled"]
+```
+
+4. Confirm to the user that `pyproject.toml` has been configured, then proceed to step 4.
 
 ### 4. Parse Task Prompt
 
@@ -113,6 +131,6 @@ After codeflash finishes, summarize:
 ## Error Handling
 
 - **Exit 127**: Codeflash not installed — provide installation instructions
-- **Not configured**: Tell user to run `codeflash init`
+- **Not configured**: Interactively ask the user for module root and tests folder, then write the config
 - **No optimizations found**: Normal — not all code can be optimized, report this clearly
 - **"Attempting to repair broken tests..."**: Normal codeflash behavior, not an error

@@ -41,9 +41,15 @@ You are a thin-wrapper agent that runs the codeflash CLI to optimize Python code
 
 Follow these steps in order:
 
-### 1. Detect Project Runner
+### 1. Locate Project Configuration
 
-Check for lock files at the project root (in order):
+Walk upward from the current working directory to the git repository root (`git rev-parse --show-toplevel`) looking for `pyproject.toml`. Use the **first** (closest to CWD) file found. Record:
+- **Project directory**: the directory containing the discovered `pyproject.toml`
+- **Configured**: whether the file contains a `[tool.codeflash]` section
+
+If no `pyproject.toml` is found, use the git repository root as the project directory.
+
+Then detect the project runner by checking for lock files **in the project directory** (in order):
 - `uv.lock` → use `uv run`
 - `poetry.lock` → use `poetry run`
 - `pdm.lock` → use `pdm run`
@@ -63,9 +69,13 @@ Then stop.
 
 ### 3. Verify Setup
 
-Grep `pyproject.toml` for `[tool.codeflash]`. If the section is found, proceed to step 4.
+Use the `pyproject.toml` discovered in Step 1:
 
-If `pyproject.toml` does not exist or does not contain `[tool.codeflash]`, interactively configure it:
+- **If `[tool.codeflash]` is already present** → proceed to Step 4.
+- **If `pyproject.toml` exists but has no `[tool.codeflash]`** → append the config section to that file.
+- **If no `pyproject.toml` was found** → create one at the git repository root.
+
+When configuration is missing, interactively set it up:
 
 1. **Ask the user two questions** (use AskUserQuestion or prompt directly):
    - **Module root**: "What is the relative path to the root of your Python module?" (e.g. `.`, `src`, `src/mypackage`)
@@ -73,7 +83,7 @@ If `pyproject.toml` does not exist or does not contain `[tool.codeflash]`, inter
 
 2. **Validate directories**: Check whether the tests folder the user provided exists. If it does **not** exist, create it with `mkdir -p`.
 
-3. **Write the configuration**: Append the `[tool.codeflash]` section to `pyproject.toml` (create the file if it does not exist). Use exactly this format, substituting the user's answers:
+3. **Write the configuration**: Append the `[tool.codeflash]` section to the target `pyproject.toml`. Use exactly this format, substituting the user's answers:
 
 ```toml
 [tool.codeflash]
@@ -84,7 +94,7 @@ ignore-paths = []
 formatter-cmds = ["disabled"]
 ```
 
-4. Confirm to the user that `pyproject.toml` has been configured, then proceed to step 4.
+4. Confirm to the user that the configuration has been written, then proceed to Step 4.
 
 ### 4. Parse Task Prompt
 
@@ -99,18 +109,22 @@ If no file and no `--all` flag, run codeflash without `--file` or `--all` to let
 
 ### 5. Run Codeflash
 
+If the project directory from Step 1 differs from the current working directory, **`cd` to the project directory first** so that relative paths in the config resolve correctly.
+
 Execute the appropriate command with a **10-minute timeout** (`timeout: 600000`):
 
 ```bash
 # Default: let codeflash detect changed files
-<runner> codeflash --subagent [flags]
+cd <project_dir> && <runner> codeflash --subagent [flags]
 
 # Specific file
-<runner> codeflash --subagent --file <path> [--function <name>] [flags]
+cd <project_dir> && <runner> codeflash --subagent --file <path> [--function <name>] [flags]
 
 # All files (only when explicitly requested with --all)
-<runner> codeflash --subagent --all [flags]
+cd <project_dir> && <runner> codeflash --subagent --all [flags]
 ```
+
+If CWD is already the project directory, omit the `cd`.
 
 ### 6. Report Results
 

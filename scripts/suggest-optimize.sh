@@ -8,10 +8,25 @@ set -euo pipefail
 # Read stdin (PostToolUse pipes tool input/output as JSON via stdin)
 INPUT=$(cat)
 
-# Only fire when the Bash command was a git commit
+# Early exit: Only fire when the Bash command was a git commit
 TOOL_INPUT=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 if ! echo "$TOOL_INPUT" | grep -q 'git commit'; then
   exit 0
+fi
+
+# Check for user opt-out via environment variable
+if [ "${CODEFLASH_NO_AUTO_OPTIMIZE:-}" = "1" ]; then
+  exit 0
+fi
+
+# Session-based deduplication: Only prompt once per Claude session
+SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
+if [ -n "$SESSION_ID" ]; then
+  SESSION_MARKER="/tmp/.codeflash-session-${SESSION_ID}"
+  if [ -f "$SESSION_MARKER" ]; then
+    # Already prompted in this session
+    exit 0
+  fi
 fi
 
 # Per-project tracker keyed on repo root
@@ -95,6 +110,13 @@ fi
 find_pyproject
 detect_runner
 
+# Check for user opt-out in pyproject.toml configuration
+if [ "$PYPROJECT_CONFIGURED" = "true" ]; then
+  if grep -q 'auto-optimize\s*=\s*false' "$PYPROJECT_PATH" 2>/dev/null; then
+    exit 0
+  fi
+fi
+
 # Check if codeflash is installed
 CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
 if ! (cd "$CHECK_DIR" && ${RUNNER} codeflash --version) >/dev/null 2>&1; then
@@ -158,10 +180,21 @@ else
   CMD="${RUNNER} codeflash --subagent"
 fi
 
-MESSAGE="Python files were changed in the latest commit. Run the following command as a background Bash task (run_in_background: true):
+MESSAGE="Python files were changed in the latest commit. You can optimize them for performance by running:
 
   ${CMD}
 
-Tell the user codeflash is optimizing in the background, then continue as normal."
+Consider running this in the background and letting the user know optimization is underway. This is optional and only if relevant to the user's current work.
+
+To disable auto-optimization for this project, add to pyproject.toml:
+[tool.codeflash]
+auto-optimize = false
+
+To disable for this session only, the user can set: export CODEFLASH_NO_AUTO_OPTIMIZE=1"
 
 jq -nc --arg ctx "$MESSAGE" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
+
+# Mark this session as having been prompted
+if [ -n "$SESSION_ID" ]; then
+  touch "$SESSION_MARKER"
+fi

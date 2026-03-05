@@ -113,7 +113,7 @@ If no file and no `--all` flag, run codeflash without `--file` or `--all` to let
 
 If the project directory from Step 1 differs from the current working directory, **`cd` to the project directory first** so that relative paths in the config resolve correctly.
 
-Execute the appropriate command with a **10-minute timeout** (`timeout: 600000`):
+Execute the appropriate command **in the background** (`run_in_background: true`) with a **10-minute timeout** (`timeout: 600000`):
 
 ```bash
 # Default: let codeflash detect changed files
@@ -128,13 +128,16 @@ cd <project_dir> && <runner> codeflash --subagent --all [flags]
 
 If CWD is already the project directory, omit the `cd`.
 
-### 6. Report Results
+**IMPORTANT**: Always use `run_in_background: true` when calling the Bash tool to execute codeflash. This allows optimization to run in the background while Claude continues other work. Tell the user "Codeflash is optimizing in the background, you'll be notified when it completes" and do not wait for the result.
 
-After codeflash finishes, summarize:
-1. Whether optimizations were found
-2. What was optimized (files, functions)
-3. Performance improvements if reported
-4. Whether a PR was created
+### 6. Report Initial Status
+
+After starting the codeflash command in the background, immediately tell the user:
+1. That codeflash is optimizing in the background
+2. Which files/functions are being analyzed (if specified)
+3. That they'll be notified when optimization completes
+
+Do not wait for the background task to finish. The user will be notified automatically when the task completes with the results (optimizations found, performance improvements, PR creation status).
 
 ## What This Agent Does NOT Do
 

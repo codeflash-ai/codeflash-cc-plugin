@@ -6,7 +6,7 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-install.sh",
-            "timeout": 10
+            "timeout": 30
           }
         ]
       }
@@ -18,7 +18,7 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/suggest-optimize.sh",
-            "timeout": 5
+            "timeout": 30
           }
         ]
       }

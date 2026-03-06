@@ -140,7 +140,7 @@ tests-root = \"<tests folder>\"
 ignore-paths = []
 formatter-cmds = [\"disabled\"]
 
-Then run: ${RUNNER} codeflash --subagent"
+Then run: ${RUNNER} codeflash --subagent" as a background Bash task (run_in_background: true)
 
   jq -nc --arg ctx "$SETUP_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
   exit 0

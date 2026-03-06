@@ -71,6 +71,21 @@ Run `/plugin` to open the plugin manager and confirm codeflash appears under the
 
 When you make a git commit that includes Python file changes, the plugin suggests running `/optimize` on those files.
 
+**Session-based prompting:** The plugin will only suggest optimization once per Claude session, regardless of how many commits you make. This prevents repetitive prompting while still keeping you informed.
+
+**Disabling auto-suggest:**
+
+To disable for the current session:
+```bash
+export CODEFLASH_NO_AUTO_OPTIMIZE=1
+```
+
+To disable permanently for a project, add to `pyproject.toml`:
+```toml
+[tool.codeflash]
+auto-optimize = false
+```
+
 ## Plugin Structure
 
 ```

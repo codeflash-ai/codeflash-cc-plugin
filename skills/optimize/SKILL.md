@@ -2,7 +2,7 @@
 name: optimize
 description: Optimize Python code for performance using Codeflash
 user-invocable: true
-argument-hint: "[file] [function] [--no-pr] [--effort low|medium|high]"
+argument-hint: "[--file] [--function] [--subagent]"
 context: fork
 agent: codeflash:optimizer
 allowed-tools: Task
@@ -20,5 +20,5 @@ Arguments: $ARGUMENTS
 If no arguments were provided, run codeflash without --file — it detects changed files itself.
 If a file path was provided without a function name, optimize all functions in that file.
 If both file and function were provided, optimize that specific function.
-Pass through any flags (--no-pr, --effort, etc.) to the codeflash command.
+Pass through the --subagent flag to the codeflash command.
 ```

@@ -90,28 +90,20 @@ fi
 find_pyproject
 detect_runner
 
-# Check if codeflash is installed
+# Determine the correct install command based on the runner
 CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
-if ! (cd "$CHECK_DIR" && ${RUNNER} codeflash --version) >/dev/null 2>&1; then
-  # Determine the correct install command based on the runner
-  case "$RUNNER" in
-    "uv run")      INSTALL_CMD="uv add --dev codeflash" ;;
-    "poetry run")   INSTALL_CMD="poetry add --group dev codeflash" ;;
-    "pdm run")      INSTALL_CMD="pdm add -dG dev codeflash" ;;
-    "pipenv run")   INSTALL_CMD="pipenv install --dev codeflash" ;;
-    *)              INSTALL_CMD="pip install codeflash" ;;
-  esac
+case "$RUNNER" in
+  "uv run")      INSTALL_CMD="uv add --dev codeflash" ;;
+  "poetry run")   INSTALL_CMD="poetry add --group dev codeflash" ;;
+  "pdm run")      INSTALL_CMD="pdm add -dG dev codeflash" ;;
+  "pipenv run")   INSTALL_CMD="pipenv install --dev codeflash" ;;
+  *)              INSTALL_CMD="pip install codeflash" ;;
+esac
 
-  INSTALL_MSG="Python files were changed in the latest commit, but codeflash is not installed.
-
-Ask the user if they'd like to install codeflash. The detected install command is:
-
-  ${INSTALL_CMD}
-
-If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to run codeflash via /optimize."
-
-  jq -nc --arg ctx "$INSTALL_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
-  exit 0
+# Check if codeflash is installed
+CODEFLASH_INSTALLED="false"
+if (cd "$CHECK_DIR" && ${RUNNER} codeflash --version) >/dev/null 2>&1; then
+  CODEFLASH_INSTALLED="true"
 fi
 
 # Check if codeflash is configured in this project
@@ -123,13 +115,20 @@ if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
     TARGET_MSG="Create \`$REPO_ROOT/pyproject.toml\`"
   fi
 
+  # Include install step if codeflash is not installed
+  INSTALL_STEP=""
+  if [ "$CODEFLASH_INSTALLED" != "true" ]; then
+    INSTALL_STEP="
+- First, install codeflash by running \`${INSTALL_CMD}\` in \`${CHECK_DIR}\`."
+  fi
+
   SETUP_MSG="Python files were changed in the latest commit, but codeflash is not configured yet.
 
 Ask the user the following two questions to set up codeflash:
 1. What is the relative path to the root of their Python module? (e.g. \".\", \"src\", \"src/mypackage\")
 2. What is the relative path to their tests folder? (e.g. \"tests\", \"test\", \"src/tests\")
 
-After getting the answers:
+After getting the answers:${INSTALL_STEP}
 - If the tests folder does not exist, create it with mkdir -p.
 - ${TARGET_MSG} (create the file if it does not exist), adding the following section with the user's answers substituted:
 
@@ -143,6 +142,20 @@ formatter-cmds = [\"disabled\"]
 Then run: ${RUNNER} codeflash --subagent as a background Bash task (run_in_background: true)"
 
   jq -nc --arg ctx "$SETUP_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
+  exit 0
+fi
+
+# Codeflash is configured but not installed
+if [ "$CODEFLASH_INSTALLED" != "true" ]; then
+  INSTALL_MSG="Python files were changed in the latest commit, but codeflash is not installed.
+
+Ask the user if they'd like to install codeflash. The detected install command is:
+
+  ${INSTALL_CMD}
+
+If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to run codeflash via /optimize."
+
+  jq -nc --arg ctx "$INSTALL_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
   exit 0
 fi
 

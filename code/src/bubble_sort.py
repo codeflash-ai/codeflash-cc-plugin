@@ -1,5 +1,12 @@
 def sorter(arr):
-    """Sort a list in ascending order using the bubble sort algorithm."""
+    """Sort a list in ascending order using the bubble sort algorithm.
+
+    Args:
+        arr: A list of comparable elements to be sorted in-place.
+
+    Returns:
+        The sorted list in ascending order.
+    """
     print("codeflash stdout: Sorting list")
     for i in range(len(arr)):
         for j in range(len(arr) - 1):

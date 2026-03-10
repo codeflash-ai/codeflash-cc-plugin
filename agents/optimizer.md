@@ -103,8 +103,6 @@ formatter-cmds = ["disabled"]
 Extract from the prompt you receive:
 - **file path**: Python file to optimize (e.g. `src/utils.py`)
 - **function name**: Specific function to target (optional)
-- **--no-pr**: Skip PR creation
-- **--effort low|medium|high**: Optimization effort level
 - Any other flags: pass through to codeflash
 
 If no file and no `--all` flag, run codeflash without `--file` or `--all` to let it detect changed files automatically. Only use `--all` when explicitly requested.

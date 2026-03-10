@@ -1,6 +1,6 @@
 # Codeflash Claude Code Plugin
 
-A minimal Claude Code plugin that runs [Codeflash](https://codeflash.ai) as a background agent to optimize Python code for performance.
+A Claude Code plugin that runs [Codeflash](https://codeflash.ai) to optimize Python code for performance — with result review and proactive suggestions.
 
 ## Prerequisites
 
@@ -67,6 +67,23 @@ Run `/plugin` to open the plugin manager and confirm codeflash appears under the
 /optimize src/utils.py --effort high    # Set optimization effort level
 ```
 
+### Review optimization results
+
+After an optimization completes, review the results:
+
+```
+/optimize-review
+```
+
+This analyzes the codeflash output and provides:
+- Plain-language explanations of each optimization
+- Speedup metrics and safety assessments
+- Recommendations on whether to accept changes
+
+### Proactive suggestions
+
+The plugin detects when you mention performance-related topics (e.g., "this function is slow", "optimize performance") and suggests running `/optimize` if codeflash is configured in your project.
+
 ### Auto-suggest after commits
 
 When you make a git commit that includes Python file changes, the plugin suggests running `/optimize` on those files.
@@ -79,11 +96,16 @@ codeflash-cc-plugin/
 │   ├── marketplace.json         # Marketplace manifest
 │   └── plugin.json              # Plugin manifest
 ├── agents/
-│   └── optimizer.md             # Background optimization agent
+│   ├── optimizer.md             # Background optimization agent
+│   └── result-reviewer.md       # Optimization results review agent
+├── commands/
+│   └── optimize-review.md       # /optimize-review command
 ├── hooks/
-│   └── hooks.json               # PostToolUse hook for commit detection
+│   └── hooks.json               # SessionStart, PostToolUse, UserPromptSubmit hooks
 ├── scripts/
-│   └── suggest-optimize.sh      # Detects Python commits, suggests /optimize
+│   ├── check-install.sh         # Checks if codeflash is installed on session start
+│   ├── suggest-optimize.sh      # Suggests /optimize after Python commits
+│   └── suggest-perf.sh          # Suggests /optimize when user discusses performance
 ├── skills/
 │   └── optimize/
 │       └── SKILL.md             # /optimize slash command
@@ -92,12 +114,21 @@ codeflash-cc-plugin/
 
 ## How It Works
 
-The plugin is a thin wrapper around the `codeflash` CLI:
+The plugin wraps the `codeflash` CLI with intelligent project detection and automation:
 
 1. `/optimize` spawns a background optimizer agent
 2. The agent detects your project's package manager (uv, poetry, pdm, pipenv)
 3. Verifies codeflash is installed and configured
 4. Runs the `codeflash` CLI with the appropriate flags
 5. Reports results (optimizations found, PRs created)
+6. `/optimize-review` provides detailed analysis of the results
 
 Codeflash handles everything else: analysis, benchmarking, test generation, and PR creation.
+
+### Hooks
+
+| Event | Trigger | Action |
+|-------|---------|--------|
+| **SessionStart** | New Claude Code session | Checks if codeflash package is installed, prompts to install if missing |
+| **PostToolUse** | Git commit with Python changes | Suggests running `/optimize` on changed files |
+| **UserPromptSubmit** | User mentions "slow", "performance", "optimize", "speed up", "faster" | Gently suggests `/optimize` if codeflash is configured |

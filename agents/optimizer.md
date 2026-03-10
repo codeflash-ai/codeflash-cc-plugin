@@ -134,8 +134,20 @@ After starting the codeflash command in the background, immediately tell the use
 1. That codeflash is optimizing in the background
 2. Which files/functions are being analyzed (if specified)
 3. That they'll be notified when optimization completes
+4. That they can run `/optimize-review` after completion to get a detailed review of the results
 
 Do not wait for the background task to finish. The user will be notified automatically when the task completes with the results (optimizations found, performance improvements, PR creation status).
+
+### 7. Handle Completion (if still active when background task finishes)
+
+If you receive the background task results while still active:
+1. Parse the codeflash output for key metrics:
+   - Number of functions optimized
+   - Speedup ratios achieved
+   - Files modified
+   - Whether PRs were created
+2. Present a concise summary to the user
+3. If optimizations were found, suggest running `/optimize-review` for a detailed analysis of the changes
 
 ## What This Agent Does NOT Do
 

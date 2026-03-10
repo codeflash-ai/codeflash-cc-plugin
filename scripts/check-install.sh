@@ -69,9 +69,9 @@ case "$RUNNER" in
   *)              INSTALL_CMD="pip install codeflash" ;;
 esac
 
-MSG="The codeflash plugin is installed but the \`codeflash\` Python package is missing.
+MSG="ACTION REQUIRED: The codeflash plugin is installed but the \`codeflash\` Python package is missing.
 
-Ask the user if they'd like to install it now. The detected install command is:
+You MUST inform the user about this and ask if they'd like to install it now, before proceeding with anything else. The detected install command is:
 
   ${INSTALL_CMD}
 

@@ -49,22 +49,6 @@ find_pyproject() {
   done
 }
 
-# Detect project runner from lock files near pyproject.toml (or CWD as fallback).
-# Sets: RUNNER
-detect_runner() {
-  local check_dir="${PYPROJECT_DIR:-$PWD}"
-  if [ -f "$check_dir/uv.lock" ]; then
-    RUNNER="uv run"
-  elif [ -f "$check_dir/poetry.lock" ]; then
-    RUNNER="poetry run"
-  elif [ -f "$check_dir/pdm.lock" ]; then
-    RUNNER="pdm run"
-  elif [ -f "$check_dir/Pipfile.lock" ]; then
-    RUNNER="pipenv run"
-  else
-    RUNNER=""
-  fi
-}
 
 # Get current HEAD; exit silently if not in a git repo
 HEAD=$(git rev-parse HEAD 2>/dev/null) || exit 0
@@ -86,23 +70,15 @@ if [ -z "$PY_FILES" ]; then
   exit 0
 fi
 
-# Discover pyproject.toml and project runner
+# Discover pyproject.toml
 find_pyproject
-detect_runner
 
-# Determine the correct install command based on the runner
 CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
-case "$RUNNER" in
-  "uv run")      INSTALL_CMD="uv add --dev codeflash" ;;
-  "poetry run")   INSTALL_CMD="poetry add --group dev codeflash" ;;
-  "pdm run")      INSTALL_CMD="pdm add -dG dev codeflash" ;;
-  "pipenv run")   INSTALL_CMD="pipenv install --dev codeflash" ;;
-  *)              INSTALL_CMD="pip install codeflash" ;;
-esac
+INSTALL_CMD="pip install codeflash"
 
 # Check if codeflash is installed
 CODEFLASH_INSTALLED="false"
-if (cd "$CHECK_DIR" && ${RUNNER} codeflash --version) >/dev/null 2>&1; then
+if (cd "$CHECK_DIR" && codeflash --version) >/dev/null 2>&1; then
   CODEFLASH_INSTALLED="true"
 fi
 
@@ -139,7 +115,7 @@ tests-root = \"<tests folder>\"
 ignore-paths = []
 formatter-cmds = [\"disabled\"]
 
-Then run: ${RUNNER} codeflash --subagent as a background Bash task (run_in_background: true)"
+Then run: codeflash --subagent as a background Bash task (run_in_background: true)"
 
   jq -nc --arg ctx "$SETUP_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
   exit 0
@@ -161,9 +137,9 @@ fi
 
 # Build codeflash command, adding cd when pyproject.toml is in a parent directory
 if [ -n "$PYPROJECT_DIR" ] && [ "$PYPROJECT_DIR" != "$PWD" ]; then
-  CMD="cd $PYPROJECT_DIR && ${RUNNER} codeflash --subagent"
+  CMD="cd $PYPROJECT_DIR && codeflash --subagent"
 else
-  CMD="${RUNNER} codeflash --subagent"
+  CMD="codeflash --subagent"
 fi
 
 MESSAGE="Python files were changed in the latest commit. Run the following command as a background Bash task (run_in_background: true):

@@ -49,23 +49,15 @@ Walk upward from the current working directory to the git repository root (`git 
 
 If no `pyproject.toml` is found, use the git repository root as the project directory.
 
-Then detect the project runner by checking for lock files **in the project directory** (in order):
-- `uv.lock` → use `uv run`
-- `poetry.lock` → use `poetry run`
-- `pdm.lock` → use `pdm run`
-- `Pipfile.lock` → use `pipenv run`
-- None found → run `codeflash` directly
-
 ### 2. Verify Installation
 
-Run `<runner> codeflash --version`. If it succeeds, proceed to Step 3.
+Run `codeflash --version`. If it succeeds, proceed to Step 3.
 
-If it fails (exit code non-zero or command not found), codeflash is not installed. Ask the user whether they'd like to install it now, using the install command matching the runner detected in step 1:
-- `uv run` → `uv add --dev codeflash`
-- `poetry run` → `poetry add --group dev codeflash`
-- `pdm run` → `pdm add -dG dev codeflash`
-- `pipenv run` → `pipenv install --dev codeflash`
-- direct → `pip install codeflash`
+If it fails (exit code non-zero or command not found), codeflash is not installed. Ask the user whether they'd like to install it now:
+
+```bash
+pip install codeflash
+```
 
 If the user agrees, run the install command in the project directory. If installation succeeds, proceed to Step 3. If the user declines or installation fails, stop.
 
@@ -115,13 +107,13 @@ Execute the appropriate command **in the background** (`run_in_background: true`
 
 ```bash
 # Default: let codeflash detect changed files
-cd <project_dir> && <runner> codeflash --subagent [flags]
+cd <project_dir> && codeflash --subagent [flags]
 
 # Specific file
-cd <project_dir> && <runner> codeflash --subagent --file <path> [--function <name>] [flags]
+cd <project_dir> && codeflash --subagent --file <path> [--function <name>] [flags]
 
 # All files (only when explicitly requested with --all)
-cd <project_dir> && <runner> codeflash --subagent --all [flags]
+cd <project_dir> && codeflash --subagent --all [flags]
 ```
 
 If CWD is already the project directory, omit the `cd`.
@@ -147,7 +139,7 @@ Do not wait for the background task to finish. The user will be notified automat
 
 ## Error Handling
 
-- **Exit 127 / command not found**: Codeflash not installed — ask the user to install it using the detected package manager
+- **Exit 127 / command not found**: Codeflash not installed — ask the user to install it with `pip install codeflash`
 - **Not configured**: Interactively ask the user for module root and tests folder, then write the config
 - **No optimizations found**: Normal — not all code can be optimized, report this clearly
 - **"Attempting to repair broken tests..."**: Normal codeflash behavior, not an error

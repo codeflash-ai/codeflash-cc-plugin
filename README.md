@@ -95,9 +95,8 @@ codeflash-cc-plugin/
 The plugin is a thin wrapper around the `codeflash` CLI:
 
 1. `/optimize` spawns a background optimizer agent
-2. The agent detects your project's package manager (uv, poetry, pdm, pipenv)
-3. Verifies codeflash is installed and configured
-4. Runs the `codeflash` CLI with the appropriate flags
-5. Reports results (optimizations found, PRs created)
+2. Verifies codeflash is installed (via `pip install codeflash`) and configured
+3. Runs the `codeflash` CLI with the appropriate flags
+4. Reports results (optimizations found, PRs created)
 
 Codeflash handles everything else: analysis, benchmarking, test generation, and PR creation.

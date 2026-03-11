@@ -34,40 +34,16 @@ find_pyproject() {
   done
 }
 
-# Detect project runner from lock files near pyproject.toml (or CWD as fallback).
-detect_runner() {
-  local check_dir="${PYPROJECT_DIR:-$PWD}"
-  if [ -f "$check_dir/uv.lock" ]; then
-    RUNNER="uv run"
-  elif [ -f "$check_dir/poetry.lock" ]; then
-    RUNNER="poetry run"
-  elif [ -f "$check_dir/pdm.lock" ]; then
-    RUNNER="pdm run"
-  elif [ -f "$check_dir/Pipfile.lock" ]; then
-    RUNNER="pipenv run"
-  else
-    RUNNER=""
-  fi
-}
-
 find_pyproject
-detect_runner
 
 CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
 
 # If codeflash is already installed, nothing to do.
-if (cd "$CHECK_DIR" && ${RUNNER} codeflash --version) >/dev/null 2>&1; then
+if (cd "$CHECK_DIR" && codeflash --version) >/dev/null 2>&1; then
   exit 0
 fi
 
-# Determine the correct install command based on the runner.
-case "$RUNNER" in
-  "uv run")      INSTALL_CMD="uv add --dev codeflash" ;;
-  "poetry run")   INSTALL_CMD="poetry add --group dev codeflash" ;;
-  "pdm run")      INSTALL_CMD="pdm add -dG dev codeflash" ;;
-  "pipenv run")   INSTALL_CMD="pipenv install --dev codeflash" ;;
-  *)              INSTALL_CMD="pip install codeflash" ;;
-esac
+INSTALL_CMD="pip install codeflash"
 
 MSG="ACTION REQUIRED: The codeflash plugin is installed but the \`codeflash\` Python package is missing.
 

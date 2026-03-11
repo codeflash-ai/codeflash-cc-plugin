@@ -129,7 +129,7 @@ Ask the user if they'd like to install codeflash. The detected install command i
 
   ${INSTALL_CMD}
 
-If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to run codeflash via /optimize."
+If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to run codeflash via \`codeflash --subagent\`."
 
   jq -nc --arg ctx "$INSTALL_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
   exit 0

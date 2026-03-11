@@ -65,7 +65,7 @@ If the user agrees, run the install command in the project directory. If install
 
 Use the `pyproject.toml` discovered in Step 1:
 
-- **If `[tool.codeflash]` is already present** → proceed to Step 4.
+- **If `[tool.codeflash]` is already present** → check the formatter (see sub-step 5 below), then proceed to Step 4.
 - **If `pyproject.toml` exists but has no `[tool.codeflash]`** → append the config section to that file.
 - **If no `pyproject.toml` was found** → create one at the git repository root.
 
@@ -88,7 +88,11 @@ ignore-paths = []
 formatter-cmds = ["disabled"]
 ```
 
-4. Confirm to the user that the configuration has been written, then proceed to Step 4.
+4. Confirm to the user that the configuration has been written.
+
+5. **Verify formatter**: Read the `formatter-cmds` value from the `[tool.codeflash]` section. If it is set to `["disabled"]` or is empty, skip this check. Otherwise, for each command in the `formatter-cmds` list, extract the base command name (the first word, e.g. `black` from `"black --line-length 88 {file}"`) and run `which <command>` to check if it is installed. If any formatter command is **not found**, inform the user which formatter(s) are missing and ask if they'd like to install them (e.g. `pip install <formatter>`). If the user agrees, run the install. If the user declines, warn that codeflash may fail to format optimized code and proceed to Step 4 anyway.
+
+Then proceed to Step 4.
 
 ### 4. Parse Task Prompt
 

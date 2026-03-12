@@ -117,6 +117,10 @@ formatter-cmds = [\"disabled\"]
 
 Once the pyproject.toml configuration is written, you MUST immediately run \`codeflash --subagent\` as a background Bash task (run_in_background: true). Do NOT skip this step."
 
+  # Set flag so the Stop hook can enforce this if Claude ignores additionalContext
+  FLAG_FILE="/tmp/.codeflash-needs-config-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
+  echo "1" > "$FLAG_FILE"
+
   jq -nc --arg ctx "$SETUP_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
   exit 0
 fi

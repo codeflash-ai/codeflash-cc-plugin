@@ -98,9 +98,9 @@ if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
 - First, install codeflash by running \`${INSTALL_CMD}\` in \`${CHECK_DIR}\`."
   fi
 
-  SETUP_MSG="Python files were changed in the latest commit, but codeflash is not configured yet.
+  SETUP_MSG="ACTION REQUIRED: Python files were changed in the latest commit, but codeflash is not configured yet.
 
-Ask the user the following two questions to set up codeflash:
+You MUST ask the user the following two questions before proceeding with anything else:
 1. What is the relative path to the root of their Python module? (e.g. \".\", \"src\", \"src/mypackage\")
 2. What is the relative path to their tests folder? (e.g. \"tests\", \"test\", \"src/tests\")
 
@@ -123,9 +123,9 @@ fi
 
 # Codeflash is configured but not installed
 if [ "$CODEFLASH_INSTALLED" != "true" ]; then
-  INSTALL_MSG="Python files were changed in the latest commit, but codeflash is not installed.
+  INSTALL_MSG="ACTION REQUIRED: Python files were changed in the latest commit, but codeflash is not installed.
 
-Ask the user if they'd like to install codeflash. The detected install command is:
+You MUST ask the user if they'd like to install codeflash before proceeding with anything else. The detected install command is:
 
   ${INSTALL_CMD}
 

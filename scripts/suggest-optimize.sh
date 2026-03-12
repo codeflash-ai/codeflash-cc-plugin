@@ -76,9 +76,29 @@ find_pyproject
 CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
 INSTALL_CMD="pip install codeflash"
 
+# Locate the codeflash binary: check PATH, then .venv/bin/, then common venv paths.
+find_codeflash() {
+  CODEFLASH_BIN=""
+  if command -v codeflash >/dev/null 2>&1; then
+    CODEFLASH_BIN="codeflash"
+    return
+  fi
+  local search_dir
+  for search_dir in "$CHECK_DIR" "$REPO_ROOT" "$PWD"; do
+    for venv in ".venv" "venv" ".env" "env"; do
+      if [ -x "$search_dir/$venv/bin/codeflash" ]; then
+        CODEFLASH_BIN="$search_dir/$venv/bin/codeflash"
+        return
+      fi
+    done
+  done
+}
+
+find_codeflash
+
 # Check if codeflash is installed
 CODEFLASH_INSTALLED="false"
-if (cd "$CHECK_DIR" && codeflash --version) >/dev/null 2>&1; then
+if [ -n "$CODEFLASH_BIN" ] && "$CODEFLASH_BIN" --version >/dev/null 2>&1; then
   CODEFLASH_INSTALLED="true"
 fi
 
@@ -141,9 +161,9 @@ fi
 
 # Build codeflash command, adding cd when pyproject.toml is in a parent directory
 if [ -n "$PYPROJECT_DIR" ] && [ "$PYPROJECT_DIR" != "$PWD" ]; then
-  CMD="cd $PYPROJECT_DIR && codeflash --subagent"
+  CMD="cd $PYPROJECT_DIR && $CODEFLASH_BIN --subagent"
 else
-  CMD="codeflash --subagent"
+  CMD="$CODEFLASH_BIN --subagent"
 fi
 
 MESSAGE="Python files were changed in the latest commit. Run the following command as a background Bash task (run_in_background: true):

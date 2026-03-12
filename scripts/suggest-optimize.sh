@@ -115,7 +115,7 @@ tests-root = \"<tests folder>\"
 ignore-paths = []
 formatter-cmds = [\"disabled\"]
 
-Then run: codeflash --subagent as a background Bash task (run_in_background: true)"
+Once the pyproject.toml configuration is written, you MUST immediately run \`codeflash --subagent\` as a background Bash task (run_in_background: true). Do NOT skip this step."
 
   jq -nc --arg ctx "$SETUP_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
   exit 0

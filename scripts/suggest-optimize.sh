@@ -1,26 +1,27 @@
 #!/usr/bin/env bash
-# PostToolUse hook (Bash): detect Python commits via git history and tell Claude
-# to run codeflash as a background Bash task. Only fires after Bash tool calls,
-# so it catches commits made via Claude's Bash tool.
+# Stop hook: detect Python changes via git history and block Claude from stopping
+# so it can run codeflash. Fires when Claude is about to finish its response.
 
 set -euo pipefail
 
-LOGFILE="/tmp/codeflash-hook-debug.log"
-exec 2>>"$LOGFILE"
-set -x
-# Read stdin (PostToolUse pipes tool input/output as JSON via stdin)
+#LOGFILE="/tmp/codeflash-hook-debug.log"
+#exec 2>>"$LOGFILE"
+#set -x
+
+# Read stdin (Stop hook pipes context as JSON via stdin)
 INPUT=$(cat)
 
-# Only fire when the Bash command was a git commit
-TOOL_INPUT=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
-if ! echo "$TOOL_INPUT" | grep -q 'git commit'; then
+# If the stop hook is already active (Claude already responded to a previous block),
+# allow the stop to proceed to avoid an infinite block loop.
+STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
+if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
   exit 0
 fi
 
-# Per-project tracker keyed on repo root (resolve symlinks so PWD and REPO_ROOT share a prefix)
-REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
-cd "$(pwd -P)"
-LAST_SEEN="/tmp/.codeflash-last-suggested-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
+## Per-project tracker keyed on repo root (resolve symlinks so PWD and REPO_ROOT share a prefix)
+#REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
+#cd "$(pwd -P)"
+#LAST_SEEN="/tmp/.codeflash-last-suggested-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
 
 # Walk from $PWD upward to $REPO_ROOT looking for pyproject.toml.
 # Sets: PYPROJECT_DIR, PYPROJECT_PATH, PYPROJECT_CONFIGURED
@@ -54,25 +55,30 @@ find_pyproject() {
 }
 
 
-# Get current HEAD; exit silently if not in a git repo
-HEAD=$(git rev-parse HEAD 2>/dev/null) || exit 0
+## Get current HEAD; exit silently if not in a git repo
+#HEAD=$(git rev-parse HEAD 2>/dev/null) || exit 0
+#
+## Read the previous HEAD we saw (empty if first check)
+#PREV=$(cat "$LAST_SEEN" 2>/dev/null || echo "")
+#
+## If HEAD hasn't changed since last check, nothing new to optimize
+#if [ -n "$PREV" ] && [ "$PREV" = "$HEAD" ]; then
+#  exit 0
+#fi
 
-# Read the previous HEAD we saw (empty if first check)
-PREV=$(cat "$LAST_SEEN" 2>/dev/null || echo "")
+## Determine changed Python files since last seen commit
+#if [ -n "$PREV" ] && git merge-base --is-ancestor "$PREV" HEAD 2>/dev/null; then
+#  PY_FILES=$(git diff --name-only "$PREV" HEAD -- '*.py' 2>/dev/null || true)
+#else
+#  PY_FILES=$(git diff --name-only HEAD~1 HEAD -- '*.py' 2>/dev/null || true)
+#fi
 
-# Determine changed Python files since last seen commit
-if [ -n "$PREV" ] && [ "$PREV" != "$HEAD" ] && git merge-base --is-ancestor "$PREV" HEAD 2>/dev/null; then
-  PY_FILES=$(git diff --name-only "$PREV" HEAD -- '*.py' 2>/dev/null || true)
-else
-  PY_FILES=$(git diff --name-only HEAD~1 HEAD -- '*.py' 2>/dev/null || true)
-fi
-
-# Always update last-seen to current HEAD
-echo "$HEAD" > "$LAST_SEEN"
-
-if [ -z "$PY_FILES" ]; then
-  exit 0
-fi
+## Always update last-seen to current HEAD
+#echo "$HEAD" > "$LAST_SEEN"
+#
+#if [ -z "$PY_FILES" ]; then
+#  exit 0
+#fi
 
 # Discover pyproject.toml
 find_pyproject
@@ -136,7 +142,7 @@ Do NOT skip any of these steps."
   FLAG_FILE="/tmp/.codeflash-needs-config-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
   echo "1" > "$FLAG_FILE"
 
-  jq -nc --arg ctx "$VENV_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
+  jq -nc --arg reason "$VENV_MSG" '{"hookSpecificOutput": {"hookEventName": "Stop", "decision": "block", "reason": $reason}}'
   exit 0
 fi
 
@@ -183,11 +189,11 @@ formatter-cmds = [\"disabled\"]
 
 Once the pyproject.toml configuration is written, you MUST immediately run \`codeflash --subagent\` as a background Bash task (run_in_background: true). Do NOT skip this step."
 
-  # Set flag so the Stop hook can enforce this if Claude ignores additionalContext
+  # Set flag so other hooks can enforce this if Claude ignores the block
   FLAG_FILE="/tmp/.codeflash-needs-config-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
   echo "1" > "$FLAG_FILE"
 
-  jq -nc --arg ctx "$SETUP_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
+  jq -nc --arg reason "$SETUP_MSG" '{"hookSpecificOutput": {"hookEventName": "Stop", "decision": "block", "reason": $reason}}'
   exit 0
 fi
 
@@ -201,24 +207,20 @@ You MUST ask the user if they'd like to install codeflash before proceeding with
 
 If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to run codeflash via \`codeflash --subagent\`."
 
-  jq -nc --arg ctx "$INSTALL_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
+  jq -nc --arg reason "$INSTALL_MSG" '{"hookSpecificOutput": {"hookEventName": "Stop", "decision": "block", "reason": $reason}}'
   exit 0
 fi
 
-# Build codeflash command, activating the venv and adding cd when pyproject.toml is in a parent directory
+# Run codeflash directly in the background from the hook
 ACTIVATE_CMD="source $VIRTUAL_ENV/bin/activate"
 if [ -n "$PYPROJECT_DIR" ] && [ "$PYPROJECT_DIR" != "$PWD" ]; then
-  CMD="$ACTIVATE_CMD && cd $PYPROJECT_DIR && $CODEFLASH_BIN --subagent"
+  RUN_CMD="$ACTIVATE_CMD && cd $PYPROJECT_DIR && $CODEFLASH_BIN --subagent"
 else
-  CMD="$ACTIVATE_CMD && $CODEFLASH_BIN --subagent"
+  RUN_CMD="$ACTIVATE_CMD && $CODEFLASH_BIN --subagent"
 fi
 
-MESSAGE="ACTION REQUIRED: Python files were changed in the latest commit.
+nohup bash -c "$RUN_CMD" > /tmp/codeflash-run.log 2>&1 &
 
-You MUST run the following command as a background Bash task (run_in_background: true) before proceeding with anything else:
+MESSAGE="Codeflash is optimizing Python files in the background. Continue as normal."
 
-  ${CMD}
-
-Tell the user codeflash is optimizing in the background, then continue as normal."
-
-jq -nc --arg ctx "$MESSAGE" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
+jq -nc --arg reason "$MESSAGE" '{"hookSpecificOutput": {"hookEventName": "Stop", "decision": "block", "reason": $reason}}'

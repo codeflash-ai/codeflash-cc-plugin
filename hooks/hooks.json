@@ -1,19 +1,8 @@
 {
   "hooks": {
-    "SessionStart": [
+    "Stop": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-install.sh",
-            "timeout": 30
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
+        "matcher": "",
         "hooks": [
           {
             "type": "command",
@@ -21,17 +10,7 @@
             "timeout": 30
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.sh",
-            "timeout": 15
-          }
-        ]
       }
     ]
-
   }
 }

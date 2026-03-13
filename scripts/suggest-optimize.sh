@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+LOGFILE="/tmp/codeflash-hook-debug.log"
+exec 2>>"$LOGFILE"
+set -x
 # Read stdin (PostToolUse pipes tool input/output as JSON via stdin)
 INPUT=$(cat)
 
@@ -14,8 +17,9 @@ if ! echo "$TOOL_INPUT" | grep -q 'git commit'; then
   exit 0
 fi
 
-# Per-project tracker keyed on repo root
-REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+# Per-project tracker keyed on repo root (resolve symlinks so PWD and REPO_ROOT share a prefix)
+REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
+cd "$(pwd -P)"
 LAST_SEEN="/tmp/.codeflash-last-suggested-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
 
 # Walk from $PWD upward to $REPO_ROOT looking for pyproject.toml.

@@ -86,6 +86,57 @@ INSTALL_CMD="pip install codeflash"
 source "$(dirname "$0")/find-venv.sh"
 
 if [ -z "${VIRTUAL_ENV:-}" ]; then
+  # No venv found — instruct Claude to create one, install codeflash, configure, and run
+
+  # Discover pyproject.toml for setup instructions
+  find_pyproject
+
+  # Build pyproject setup instructions if not configured
+  PYPROJECT_SETUP=""
+  if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
+    if [ -n "$PYPROJECT_PATH" ]; then
+      TARGET_MSG="Append to \`$PYPROJECT_PATH\`"
+    else
+      TARGET_MSG="Create \`$REPO_ROOT/pyproject.toml\`"
+    fi
+
+    PYPROJECT_SETUP="
+3. Ask the user the following two questions:
+   a. What is the relative path to the root of their Python module? (e.g. \".\", \"src\", \"src/mypackage\")
+   b. What is the relative path to their tests folder? (e.g. \"tests\", \"test\", \"src/tests\")
+
+4. After getting the answers:
+   - If the tests folder does not exist, create it with mkdir -p.
+   - ${TARGET_MSG} (create the file if it does not exist), adding the following section with the user's answers substituted:
+
+[tool.codeflash]
+# All paths are relative to this pyproject.toml's directory.
+module-root = \"<module root>\"
+tests-root = \"<tests folder>\"
+ignore-paths = []
+formatter-cmds = [\"disabled\"]
+
+5. Run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
+  else
+    PYPROJECT_SETUP="
+3. Run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
+  fi
+
+  VENV_MSG="ACTION REQUIRED: Python files were changed in the latest commit, but no Python virtual environment was found.
+
+You MUST perform the following steps before proceeding with anything else:
+
+1. Create a virtual environment by running: \`python3 -m venv .venv\` in \`$REPO_ROOT\`, then activate it by running: \`source $REPO_ROOT/.venv/bin/activate\`.
+
+2. Install codeflash by running: \`${INSTALL_CMD}\`.
+${PYPROJECT_SETUP}
+
+Do NOT skip any of these steps."
+
+  FLAG_FILE="/tmp/.codeflash-needs-config-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
+  echo "1" > "$FLAG_FILE"
+
+  jq -nc --arg ctx "$VENV_MSG" '{"decision": "block", "reason": $ctx, "hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
   exit 0
 fi
 

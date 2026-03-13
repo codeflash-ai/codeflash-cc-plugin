@@ -84,7 +84,7 @@ If it fails (exit code non-zero or command not found), codeflash is not installe
 pip install codeflash
 ```
 
-If the user agrees, run the install command in the project directory. If installation succeeds, proceed to Step 3. If the user declines or installation fails, stop.
+If the user agrees, run the installation command in the project directory. If installation succeeds, proceed to Step 3. If the user declines or installation fails, stop.
 
 ### 3. Verify Setup
 

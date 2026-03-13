@@ -44,15 +44,8 @@ CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
 
 # Only use codeflash from the current virtual environment.
 # If no venv is active, try to find and activate one automatically.
-if [ -z "${VIRTUAL_ENV:-}" ]; then
-  for candidate in "$CHECK_DIR/.venv" "$CHECK_DIR/venv" "$REPO_ROOT/.venv" "$REPO_ROOT/venv"; do
-    if [ -f "$candidate/bin/activate" ]; then
-      # shellcheck disable=SC1091
-      source "$candidate/bin/activate"
-      break
-    fi
-  done
-fi
+# shellcheck disable=SC1091
+source "$(dirname "$0")/find-venv.sh"
 
 if [ -z "${VIRTUAL_ENV:-}" ]; then
   MSG="ACTION REQUIRED: The codeflash plugin requires an active Python virtual environment, but none was found.

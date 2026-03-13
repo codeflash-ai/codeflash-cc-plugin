@@ -170,7 +170,9 @@ else
   CMD="$CODEFLASH_BIN --subagent"
 fi
 
-MESSAGE="Python files were changed in the latest commit. Run the following command as a background Bash task (run_in_background: true):
+MESSAGE="ACTION REQUIRED: Python files were changed in the latest commit.
+
+You MUST run the following command as a background Bash task (run_in_background: true) before proceeding with anything else:
 
   ${CMD}
 

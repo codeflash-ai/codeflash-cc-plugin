@@ -43,12 +43,23 @@ find_pyproject
 CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
 
 # Only use codeflash from the current virtual environment.
+# If no venv is active, try to find and activate one automatically.
 if [ -z "${VIRTUAL_ENV:-}" ]; then
-  MSG="ACTION REQUIRED: The codeflash plugin requires an active Python virtual environment, but none is currently activated.
+  for candidate in "$CHECK_DIR/.venv" "$CHECK_DIR/venv" "$REPO_ROOT/.venv" "$REPO_ROOT/venv"; do
+    if [ -f "$candidate/bin/activate" ]; then
+      # shellcheck disable=SC1091
+      source "$candidate/bin/activate"
+      break
+    fi
+  done
+fi
+
+if [ -z "${VIRTUAL_ENV:-}" ]; then
+  MSG="ACTION REQUIRED: The codeflash plugin requires an active Python virtual environment, but none was found.
 
 You MUST inform the user about this before proceeding with anything else. Tell them:
 
-1. No Python virtual environment is active. Codeflash must be installed in a virtual environment.
+1. No Python virtual environment was found. Codeflash must be installed in a virtual environment.
 2. They should create and activate one, for example:
    \`\`\`
    python -m venv .venv

@@ -81,6 +81,17 @@ CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
 INSTALL_CMD="pip install codeflash"
 
 # Only use codeflash from the current virtual environment.
+# If no venv is active, try to find and activate one automatically.
+if [ -z "${VIRTUAL_ENV:-}" ]; then
+  for candidate in "$CHECK_DIR/.venv" "$CHECK_DIR/venv" "$REPO_ROOT/.venv" "$REPO_ROOT/venv"; do
+    if [ -f "$candidate/bin/activate" ]; then
+      # shellcheck disable=SC1091
+      source "$candidate/bin/activate"
+      break
+    fi
+  done
+fi
+
 if [ -z "${VIRTUAL_ENV:-}" ]; then
   exit 0
 fi
@@ -150,11 +161,12 @@ If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to
   exit 0
 fi
 
-# Build codeflash command, adding cd when pyproject.toml is in a parent directory
+# Build codeflash command, activating the venv and adding cd when pyproject.toml is in a parent directory
+ACTIVATE_CMD="source $VIRTUAL_ENV/bin/activate"
 if [ -n "$PYPROJECT_DIR" ] && [ "$PYPROJECT_DIR" != "$PWD" ]; then
-  CMD="cd $PYPROJECT_DIR && $CODEFLASH_BIN --subagent"
+  CMD="$ACTIVATE_CMD && cd $PYPROJECT_DIR && $CODEFLASH_BIN --subagent"
 else
-  CMD="$CODEFLASH_BIN --subagent"
+  CMD="$ACTIVATE_CMD && $CODEFLASH_BIN --subagent"
 fi
 
 MESSAGE="ACTION REQUIRED: Python files were changed in the latest commit.

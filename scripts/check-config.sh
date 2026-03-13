@@ -80,6 +80,17 @@ CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
 INSTALL_CMD="pip install codeflash"
 
 # --- require active virtual environment -----------------------------------
+# If no venv is active, try to find and activate one automatically.
+if [ -z "${VIRTUAL_ENV:-}" ]; then
+  for candidate in "$CHECK_DIR/.venv" "$CHECK_DIR/venv" "$REPO_ROOT/.venv" "$REPO_ROOT/venv"; do
+    if [ -f "$candidate/bin/activate" ]; then
+      # shellcheck disable=SC1091
+      source "$candidate/bin/activate"
+      break
+    fi
+  done
+fi
+
 if [ -z "${VIRTUAL_ENV:-}" ]; then
   touch "$SESSION_FLAG"
   exit 0

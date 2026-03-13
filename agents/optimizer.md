@@ -51,9 +51,23 @@ If no `pyproject.toml` is found, use the git repository root as the project dire
 
 ### 2. Verify Virtual Environment and Installation
 
-First, check that a Python virtual environment is active by running `echo $VIRTUAL_ENV`. If it is empty or unset, **stop and inform the user**:
+First, check that a Python virtual environment is active by running `echo $VIRTUAL_ENV`.
 
-> No Python virtual environment is active. Codeflash must be installed in a virtual environment.
+If `$VIRTUAL_ENV` is empty or unset, **try to find and activate a virtual environment automatically**. Look for common venv directories in the project directory (from Step 1), then in the git repo root:
+
+```bash
+# Check these directories in order, using the project directory first:
+for candidate in <project_dir>/.venv <project_dir>/venv <repo_root>/.venv <repo_root>/venv; do
+  if [ -f "$candidate/bin/activate" ]; then
+    source "$candidate/bin/activate"
+    break
+  fi
+done
+```
+
+After attempting auto-discovery, check `echo $VIRTUAL_ENV` again. If it is **still** empty or unset, **stop and inform the user**:
+
+> No Python virtual environment was found. Codeflash must be installed in a virtual environment.
 > Please create and activate one, then install codeflash:
 > ```
 > python -m venv .venv
@@ -62,7 +76,7 @@ First, check that a Python virtual environment is active by running `echo $VIRTU
 > ```
 > Then restart Claude Code from within the activated virtual environment.
 
-If a virtual environment is active, run `codeflash --version`. If it succeeds, proceed to Step 3.
+If a virtual environment is now active, run `$VIRTUAL_ENV/bin/codeflash --version`. If it succeeds, proceed to Step 3.
 
 If it fails (exit code non-zero or command not found), codeflash is not installed in the active virtual environment. Ask the user whether they'd like to install it now:
 
@@ -122,16 +136,16 @@ Execute the appropriate command **in the background** (`run_in_background: true`
 
 ```bash
 # Default: let codeflash detect changed files
-cd <project_dir> && codeflash --subagent [flags]
+source $VIRTUAL_ENV/bin/activate && cd <project_dir> && codeflash --subagent [flags]
 
 # Specific file
-cd <project_dir> && codeflash --subagent --file <path> [--function <name>] [flags]
+source $VIRTUAL_ENV/bin/activate && cd <project_dir> && codeflash --subagent --file <path> [--function <name>] [flags]
 
 # All files (only when explicitly requested with --all)
-cd <project_dir> && codeflash --subagent --all [flags]
+source $VIRTUAL_ENV/bin/activate && cd <project_dir> && codeflash --subagent --all [flags]
 ```
 
-If CWD is already the project directory, omit the `cd`.
+If CWD is already the project directory, omit the `cd`. Always include the `source $VIRTUAL_ENV/bin/activate` prefix to ensure the virtual environment is active in the shell that runs codeflash.
 
 **IMPORTANT**: Always use `run_in_background: true` when calling the Bash tool to execute codeflash. This allows optimization to run in the background while Claude continues other work. Tell the user "Codeflash is optimizing in the background, you'll be notified when it completes" and do not wait for the result.
 
@@ -154,7 +168,7 @@ Do not wait for the background task to finish. The user will be notified automat
 
 ## Error Handling
 
-- **No virtual environment**: No `$VIRTUAL_ENV` set — tell the user to create/activate a venv, install codeflash there, and restart Claude Code
+- **No virtual environment**: No `$VIRTUAL_ENV` set and no `.venv`/`venv` directory found — tell the user to create/activate a venv, install codeflash there, and restart Claude Code
 - **Exit 127 / command not found**: Codeflash not installed in the active venv — ask the user to install it with `pip install codeflash`
 - **Not configured**: Interactively ask the user for module root and tests folder, then write the config
 - **No optimizations found**: Normal — not all code can be optimized, report this clearly

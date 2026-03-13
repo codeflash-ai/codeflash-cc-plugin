@@ -8,6 +8,10 @@ set -euo pipefail
 # We need a git repo to locate pyproject.toml and lock files.
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 
+# Clear per-session config-check flag so check-config.sh re-evaluates fresh
+REPO_HASH=$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)
+rm -f "/tmp/.codeflash-config-checked-${REPO_HASH}"
+
 # Walk from $PWD upward to $REPO_ROOT looking for pyproject.toml.
 find_pyproject() {
   PYPROJECT_DIR=""

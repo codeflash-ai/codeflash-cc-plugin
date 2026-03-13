@@ -45,6 +45,7 @@ CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
 # Locate the codeflash binary: check PATH, then .venv/bin/, then common venv paths.
 find_codeflash() {
   CODEFLASH_BIN=""
+  CODEFLASH_VENV_ACTIVATE=""
   if command -v codeflash >/dev/null 2>&1; then
     CODEFLASH_BIN="codeflash"
     return
@@ -54,6 +55,9 @@ find_codeflash() {
     for venv in ".venv" "venv" ".env" "env"; do
       if [ -x "$search_dir/$venv/bin/codeflash" ]; then
         CODEFLASH_BIN="$search_dir/$venv/bin/codeflash"
+        if [ -f "$search_dir/$venv/bin/activate" ]; then
+          CODEFLASH_VENV_ACTIVATE="$search_dir/$venv/bin/activate"
+        fi
         return
       fi
     done

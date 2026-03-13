@@ -80,29 +80,16 @@ find_pyproject
 CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
 INSTALL_CMD="pip install codeflash"
 
-# Locate the codeflash binary: check PATH, then .venv/bin/, then common venv paths.
-find_codeflash() {
-  CODEFLASH_BIN=""
-  if command -v codeflash >/dev/null 2>&1; then
-    CODEFLASH_BIN="codeflash"
-    return
-  fi
-  local search_dir
-  for search_dir in "$CHECK_DIR" "$REPO_ROOT" "$PWD"; do
-    for venv in ".venv" "venv" ".env" "env"; do
-      if [ -x "$search_dir/$venv/bin/codeflash" ]; then
-        CODEFLASH_BIN="$search_dir/$venv/bin/codeflash"
-        return
-      fi
-    done
-  done
-}
+# Only use codeflash from the current virtual environment.
+if [ -z "${VIRTUAL_ENV:-}" ]; then
+  exit 0
+fi
 
-find_codeflash
+CODEFLASH_BIN="${VIRTUAL_ENV}/bin/codeflash"
 
-# Check if codeflash is installed
+# Check if codeflash is installed in the venv
 CODEFLASH_INSTALLED="false"
-if [ -n "$CODEFLASH_BIN" ] && "$CODEFLASH_BIN" --version >/dev/null 2>&1; then
+if [ -x "$CODEFLASH_BIN" ] && "$CODEFLASH_BIN" --version >/dev/null 2>&1; then
   CODEFLASH_INSTALLED="true"
 fi
 
@@ -149,9 +136,9 @@ Once the pyproject.toml configuration is written, you MUST immediately run \`cod
   exit 0
 fi
 
-# Codeflash is configured but not installed
+# Codeflash is configured but not installed in the venv
 if [ "$CODEFLASH_INSTALLED" != "true" ]; then
-  INSTALL_MSG="ACTION REQUIRED: Python files were changed in the latest commit, but codeflash is not installed.
+  INSTALL_MSG="ACTION REQUIRED: Python files were changed in the latest commit, but codeflash is not installed in the active virtual environment (\`$VIRTUAL_ENV\`).
 
 You MUST ask the user if they'd like to install codeflash before proceeding with anything else. The detected install command is:
 

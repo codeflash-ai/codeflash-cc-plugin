@@ -49,11 +49,22 @@ Walk upward from the current working directory to the git repository root (`git 
 
 If no `pyproject.toml` is found, use the git repository root as the project directory.
 
-### 2. Verify Installation
+### 2. Verify Virtual Environment and Installation
 
-Run `codeflash --version`. If it succeeds, proceed to Step 3.
+First, check that a Python virtual environment is active by running `echo $VIRTUAL_ENV`. If it is empty or unset, **stop and inform the user**:
 
-If it fails (exit code non-zero or command not found), codeflash is not installed. Ask the user whether they'd like to install it now:
+> No Python virtual environment is active. Codeflash must be installed in a virtual environment.
+> Please create and activate one, then install codeflash:
+> ```
+> python -m venv .venv
+> source .venv/bin/activate
+> pip install codeflash
+> ```
+> Then restart Claude Code from within the activated virtual environment.
+
+If a virtual environment is active, run `codeflash --version`. If it succeeds, proceed to Step 3.
+
+If it fails (exit code non-zero or command not found), codeflash is not installed in the active virtual environment. Ask the user whether they'd like to install it now:
 
 ```bash
 pip install codeflash
@@ -143,7 +154,8 @@ Do not wait for the background task to finish. The user will be notified automat
 
 ## Error Handling
 
-- **Exit 127 / command not found**: Codeflash not installed — ask the user to install it with `pip install codeflash`
+- **No virtual environment**: No `$VIRTUAL_ENV` set — tell the user to create/activate a venv, install codeflash there, and restart Claude Code
+- **Exit 127 / command not found**: Codeflash not installed in the active venv — ask the user to install it with `pip install codeflash`
 - **Not configured**: Interactively ask the user for module root and tests folder, then write the config
 - **No optimizations found**: Normal — not all code can be optimized, report this clearly
 - **"Attempting to repair broken tests..."**: Normal codeflash behavior, not an error

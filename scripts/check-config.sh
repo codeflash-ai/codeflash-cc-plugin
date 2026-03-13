@@ -79,28 +79,16 @@ find_pyproject
 CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
 INSTALL_CMD="pip install codeflash"
 
-# --- locate codeflash binary ---------------------------------------------
-find_codeflash() {
-  CODEFLASH_BIN=""
-  if command -v codeflash >/dev/null 2>&1; then
-    CODEFLASH_BIN="codeflash"
-    return
-  fi
-  local search_dir
-  for search_dir in "$CHECK_DIR" "$REPO_ROOT" "$PWD"; do
-    for venv in ".venv" "venv" ".env" "env"; do
-      if [ -x "$search_dir/$venv/bin/codeflash" ]; then
-        CODEFLASH_BIN="$search_dir/$venv/bin/codeflash"
-        return
-      fi
-    done
-  done
-}
+# --- require active virtual environment -----------------------------------
+if [ -z "${VIRTUAL_ENV:-}" ]; then
+  touch "$SESSION_FLAG"
+  exit 0
+fi
 
-find_codeflash
+CODEFLASH_BIN="${VIRTUAL_ENV}/bin/codeflash"
 
 CODEFLASH_INSTALLED="false"
-if [ -n "$CODEFLASH_BIN" ] && "$CODEFLASH_BIN" --version >/dev/null 2>&1; then
+if [ -x "$CODEFLASH_BIN" ] && "$CODEFLASH_BIN" --version >/dev/null 2>&1; then
   CODEFLASH_INSTALLED="true"
 fi
 
@@ -151,7 +139,7 @@ Once the pyproject.toml configuration is written, you MUST immediately run \`cod
 fi
 
 # --- configured but not installed → prompt for install -------------------
-INSTALL_MSG="ACTION REQUIRED: This is a Python project with codeflash configured, but the codeflash package is not installed.
+INSTALL_MSG="ACTION REQUIRED: This is a Python project with codeflash configured, but the codeflash package is not installed in the active virtual environment (\`$VIRTUAL_ENV\`).
 
 You MUST ask the user if they'd like to install codeflash before proceeding with anything else. The detected install command is:
 

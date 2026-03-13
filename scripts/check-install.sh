@@ -42,34 +42,36 @@ find_pyproject
 
 CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
 
-# Locate the codeflash binary: check PATH, then .venv/bin/, then common venv paths.
-find_codeflash() {
-  CODEFLASH_BIN=""
-  if command -v codeflash >/dev/null 2>&1; then
-    CODEFLASH_BIN="codeflash"
-    return
-  fi
-  local search_dir
-  for search_dir in "$CHECK_DIR" "$REPO_ROOT" "$PWD"; do
-    for venv in ".venv" "venv" ".env" "env"; do
-      if [ -x "$search_dir/$venv/bin/codeflash" ]; then
-        CODEFLASH_BIN="$search_dir/$venv/bin/codeflash"
-        return
-      fi
-    done
-  done
-}
+# Only use codeflash from the current virtual environment.
+if [ -z "${VIRTUAL_ENV:-}" ]; then
+  MSG="ACTION REQUIRED: The codeflash plugin requires an active Python virtual environment, but none is currently activated.
 
-find_codeflash
+You MUST inform the user about this before proceeding with anything else. Tell them:
 
-# If codeflash is already installed, nothing to do.
-if [ -n "$CODEFLASH_BIN" ] && "$CODEFLASH_BIN" --version >/dev/null 2>&1; then
+1. No Python virtual environment is active. Codeflash must be installed in a virtual environment.
+2. They should create and activate one, for example:
+   \`\`\`
+   python -m venv .venv
+   source .venv/bin/activate   # On macOS/Linux
+   # or: .venv\\\\Scripts\\\\activate  # On Windows
+   \`\`\`
+3. Then install codeflash: \`pip install codeflash\`
+4. Then restart Claude Code from within the activated virtual environment."
+
+  jq -nc --arg ctx "$MSG" '{"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": $ctx}}'
+  exit 0
+fi
+
+CODEFLASH_BIN="${VIRTUAL_ENV}/bin/codeflash"
+
+# If codeflash is already installed in the venv, nothing to do.
+if [ -x "$CODEFLASH_BIN" ] && "$CODEFLASH_BIN" --version >/dev/null 2>&1; then
   exit 0
 fi
 
 INSTALL_CMD="pip install codeflash"
 
-MSG="ACTION REQUIRED: The codeflash plugin is installed but the \`codeflash\` Python package is missing.
+MSG="ACTION REQUIRED: The codeflash plugin is installed but the \`codeflash\` Python package is missing from the active virtual environment (\`$VIRTUAL_ENV\`).
 
 You MUST inform the user about this and ask if they'd like to install it now, before proceeding with anything else. The detected install command is:
 

@@ -62,7 +62,7 @@ You MUST inform the user about this before proceeding with anything else. Tell t
 3. Then install codeflash: \`pip install codeflash\`
 4. Then restart Claude Code from within the activated virtual environment."
 
-  jq -nc --arg ctx "$MSG" '{"decision": "block", "reason": $ctx, "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": $ctx}}'
+  jq -nc --arg ctx "$MSG" '{"reason": $ctx, "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": $ctx}}'
   exit 0
 fi
 
@@ -83,4 +83,4 @@ You MUST inform the user about this and ask if they'd like to install it now, be
 
 If the user agrees, run the install command in \`${CHECK_DIR}\`."
 
-jq -nc --arg ctx "$MSG" '{"decision": "block", "reason": $ctx, "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": $ctx}}'
+jq -nc --arg ctx "$MSG" '{"reason": $ctx, "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": $ctx}}'

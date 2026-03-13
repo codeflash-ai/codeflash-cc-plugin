@@ -31,17 +31,7 @@
           }
         ]
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/ensure-config-prompt.sh",
-            "timeout": 15
-          }
-        ]
-      }
     ]
+
   }
 }

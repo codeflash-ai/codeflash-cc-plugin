@@ -51,7 +51,16 @@ If no `pyproject.toml` is found, use the git repository root as the project dire
 
 ### 2. Verify Installation
 
-Run `codeflash --version`. If it succeeds, proceed to Step 3.
+First, check if codeflash is available. Look for it in this order:
+1. On PATH: `command -v codeflash`
+2. In a virtualenv: check `<project_dir>/.venv/bin/codeflash`, `<project_dir>/venv/bin/codeflash`, and similar common venv directories (`.env`, `env`)
+
+If codeflash is found inside a virtualenv, you **must activate that virtualenv** before running any codeflash commands:
+```bash
+source <venv_dir>/bin/activate
+```
+
+Run `codeflash --version` (after activation if needed). If it succeeds, proceed to Step 3.
 
 If it fails (exit code non-zero or command not found), codeflash is not installed. Ask the user whether they'd like to install it now:
 
@@ -107,20 +116,20 @@ If no file and no `--all` flag, run codeflash without `--file` or `--all` to let
 
 If the project directory from Step 1 differs from the current working directory, **`cd` to the project directory first** so that relative paths in the config resolve correctly.
 
-Execute the appropriate command **in the background** (`run_in_background: true`) with a **10-minute timeout** (`timeout: 600000`):
+If codeflash was found in a virtualenv (Step 2), **activate the virtualenv first** in the same command. Execute the appropriate command **in the background** (`run_in_background: true`) with a **10-minute timeout** (`timeout: 600000`):
 
 ```bash
 # Default: let codeflash detect changed files
-cd <project_dir> && codeflash --subagent [flags]
+source <venv>/bin/activate && cd <project_dir> && codeflash --subagent [flags]
 
 # Specific file
-cd <project_dir> && codeflash --subagent --file <path> [--function <name>] [flags]
+source <venv>/bin/activate && cd <project_dir> && codeflash --subagent --file <path> [--function <name>] [flags]
 
 # All files (only when explicitly requested with --all)
-cd <project_dir> && codeflash --subagent --all [flags]
+source <venv>/bin/activate && cd <project_dir> && codeflash --subagent --all [flags]
 ```
 
-If CWD is already the project directory, omit the `cd`.
+If codeflash is on PATH (not in a venv), omit the `source` step. If CWD is already the project directory, omit the `cd`.
 
 **IMPORTANT**: Always use `run_in_background: true` when calling the Bash tool to execute codeflash. This allows optimization to run in the background while Claude continues other work. Tell the user "Codeflash is optimizing in the background, you'll be notified when it completes" and do not wait for the result.
 

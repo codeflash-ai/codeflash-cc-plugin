@@ -82,6 +82,7 @@ INSTALL_CMD="pip install codeflash"
 # --- locate codeflash binary ---------------------------------------------
 find_codeflash() {
   CODEFLASH_BIN=""
+  CODEFLASH_VENV_ACTIVATE=""
   if command -v codeflash >/dev/null 2>&1; then
     CODEFLASH_BIN="codeflash"
     return
@@ -91,6 +92,9 @@ find_codeflash() {
     for venv in ".venv" "venv" ".env" "env"; do
       if [ -x "$search_dir/$venv/bin/codeflash" ]; then
         CODEFLASH_BIN="$search_dir/$venv/bin/codeflash"
+        if [ -f "$search_dir/$venv/bin/activate" ]; then
+          CODEFLASH_VENV_ACTIVATE="$search_dir/$venv/bin/activate"
+        fi
         return
       fi
     done
@@ -124,6 +128,12 @@ if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
 - First, install codeflash by running \`${INSTALL_CMD}\` in \`${CHECK_DIR}\`."
   fi
 
+  ACTIVATE_STEP=""
+  if [ -n "$CODEFLASH_VENV_ACTIVATE" ]; then
+    ACTIVATE_STEP="
+- Before running codeflash, activate the virtualenv: \`source ${CODEFLASH_VENV_ACTIVATE}\`"
+  fi
+
   SETUP_MSG="ACTION REQUIRED: This is a Python project but codeflash is not configured yet.
 
 You MUST ask the user the following two questions before proceeding with anything else:
@@ -140,7 +150,7 @@ module-root = \"<module root>\"
 tests-root = \"<tests folder>\"
 ignore-paths = []
 formatter-cmds = [\"disabled\"]
-
+${ACTIVATE_STEP}
 Once the pyproject.toml configuration is written, you MUST immediately run \`codeflash --subagent\` as a background Bash task (run_in_background: true). Do NOT skip this step."
 
   touch "$SESSION_FLAG"
@@ -151,13 +161,20 @@ Once the pyproject.toml configuration is written, you MUST immediately run \`cod
 fi
 
 # --- configured but not installed → prompt for install -------------------
+ACTIVATE_NOTE=""
+if [ -n "$CODEFLASH_VENV_ACTIVATE" ]; then
+  ACTIVATE_NOTE="
+
+Before running codeflash, activate the virtualenv: \`source ${CODEFLASH_VENV_ACTIVATE}\`"
+fi
+
 INSTALL_MSG="ACTION REQUIRED: This is a Python project with codeflash configured, but the codeflash package is not installed.
 
 You MUST ask the user if they'd like to install codeflash before proceeding with anything else. The detected install command is:
 
   ${INSTALL_CMD}
 
-If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to run codeflash via \`codeflash --subagent\`."
+If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to run codeflash via \`codeflash --subagent\`.${ACTIVATE_NOTE}"
 
 touch "$SESSION_FLAG"
 

@@ -79,6 +79,7 @@ INSTALL_CMD="pip install codeflash"
 # Locate the codeflash binary: check PATH, then .venv/bin/, then common venv paths.
 find_codeflash() {
   CODEFLASH_BIN=""
+  CODEFLASH_VENV_ACTIVATE=""
   if command -v codeflash >/dev/null 2>&1; then
     CODEFLASH_BIN="codeflash"
     return
@@ -88,6 +89,9 @@ find_codeflash() {
     for venv in ".venv" "venv" ".env" "env"; do
       if [ -x "$search_dir/$venv/bin/codeflash" ]; then
         CODEFLASH_BIN="$search_dir/$venv/bin/codeflash"
+        if [ -f "$search_dir/$venv/bin/activate" ]; then
+          CODEFLASH_VENV_ACTIVATE="$search_dir/$venv/bin/activate"
+        fi
         return
       fi
     done
@@ -118,6 +122,12 @@ if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
 - First, install codeflash by running \`${INSTALL_CMD}\` in \`${CHECK_DIR}\`."
   fi
 
+  ACTIVATE_STEP=""
+  if [ -n "$CODEFLASH_VENV_ACTIVATE" ]; then
+    ACTIVATE_STEP="
+- Before running codeflash, activate the virtualenv: \`source ${CODEFLASH_VENV_ACTIVATE}\`"
+  fi
+
   SETUP_MSG="ACTION REQUIRED: Python files were changed in the latest commit, but codeflash is not configured yet.
 
 You MUST ask the user the following two questions before proceeding with anything else:
@@ -134,7 +144,7 @@ module-root = \"<module root>\"
 tests-root = \"<tests folder>\"
 ignore-paths = []
 formatter-cmds = [\"disabled\"]
-
+${ACTIVATE_STEP}
 Once the pyproject.toml configuration is written, you MUST immediately run \`codeflash --subagent\` as a background Bash task (run_in_background: true). Do NOT skip this step."
 
   # Set flag so the Stop hook can enforce this if Claude ignores additionalContext
@@ -147,23 +157,35 @@ fi
 
 # Codeflash is configured but not installed
 if [ "$CODEFLASH_INSTALLED" != "true" ]; then
+  ACTIVATE_NOTE=""
+  if [ -n "$CODEFLASH_VENV_ACTIVATE" ]; then
+    ACTIVATE_NOTE="
+
+Before running codeflash, activate the virtualenv: \`source ${CODEFLASH_VENV_ACTIVATE}\`"
+  fi
+
   INSTALL_MSG="ACTION REQUIRED: Python files were changed in the latest commit, but codeflash is not installed.
 
 You MUST ask the user if they'd like to install codeflash before proceeding with anything else. The detected install command is:
 
   ${INSTALL_CMD}
 
-If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to run codeflash via \`codeflash --subagent\`."
+If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to run codeflash via \`codeflash --subagent\`.${ACTIVATE_NOTE}"
 
   jq -nc --arg ctx "$INSTALL_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
   exit 0
 fi
 
-# Build codeflash command, adding cd when pyproject.toml is in a parent directory
+# Build codeflash command, adding cd and venv activation as needed
+ACTIVATE_PREFIX=""
+if [ -n "$CODEFLASH_VENV_ACTIVATE" ]; then
+  ACTIVATE_PREFIX="source $CODEFLASH_VENV_ACTIVATE && "
+fi
+
 if [ -n "$PYPROJECT_DIR" ] && [ "$PYPROJECT_DIR" != "$PWD" ]; then
-  CMD="cd $PYPROJECT_DIR && $CODEFLASH_BIN --subagent"
+  CMD="${ACTIVATE_PREFIX}cd $PYPROJECT_DIR && codeflash --subagent"
 else
-  CMD="$CODEFLASH_BIN --subagent"
+  CMD="${ACTIVATE_PREFIX}codeflash --subagent"
 fi
 
 MESSAGE="Python files were changed in the latest commit. Run the following command as a background Bash task (run_in_background: true):

@@ -21,6 +21,15 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.sh",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "Stop": [

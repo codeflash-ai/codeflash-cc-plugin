@@ -136,7 +136,7 @@ Once the pyproject.toml configuration is written, you MUST immediately run \`cod
   FLAG_FILE="/tmp/.codeflash-needs-config-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
   echo "1" > "$FLAG_FILE"
 
-  jq -nc --arg ctx "$SETUP_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
+  jq -nc --arg ctx "$SETUP_MSG" '{"decision": "block", "reason": $ctx, "hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
   exit 0
 fi
 
@@ -150,7 +150,7 @@ You MUST ask the user if they'd like to install codeflash before proceeding with
 
 If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to run codeflash via \`codeflash --subagent\`."
 
-  jq -nc --arg ctx "$INSTALL_MSG" '{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
+  jq -nc --arg ctx "$INSTALL_MSG" '{"decision": "block", "reason": $ctx, "hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": $ctx}}'
   exit 0
 fi
 

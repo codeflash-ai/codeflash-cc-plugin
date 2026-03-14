@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Stop hook: detect Python changes via git history and block Claude from stopping
-# so it can run codeflash. Fires when Claude is about to finish its response.
+# Stop hook: detect Python changes and ask the user if they'd like to run
+# codeflash to optimize their code. Fires when Claude is about to finish its response.
 
 set -euo pipefail
 
@@ -19,7 +19,7 @@ if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
 fi
 
 ## Per-project tracker keyed on repo root (resolve symlinks so PWD and REPO_ROOT share a prefix)
-#REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
+REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
 #cd "$(pwd -P)"
 #LAST_SEEN="/tmp/.codeflash-last-suggested-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
 
@@ -128,21 +128,18 @@ formatter-cmds = [\"disabled\"]
 3. Run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
   fi
 
-  VENV_MSG="ACTION REQUIRED: Python files were changed in the latest commit, but no Python virtual environment was found.
+  VENV_MSG="Python files were changed in the latest commit, but no Python virtual environment was found.
 
-You MUST perform the following steps before proceeding with anything else:
+Ask the user if they'd like to set up codeflash to optimize their Python code for performance. If they agree, perform the following steps:
 
 1. Create a virtual environment by running: \`python3 -m venv .venv\` in \`$REPO_ROOT\`, then activate it by running: \`source $REPO_ROOT/.venv/bin/activate\`.
 
 2. Install codeflash by running: \`${INSTALL_CMD}\`.
 ${PYPROJECT_SETUP}
 
-Do NOT skip any of these steps."
+If the user declines, do nothing and continue normally."
 
-  FLAG_FILE="/tmp/.codeflash-needs-config-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
-  echo "1" > "$FLAG_FILE"
-
-  jq -nc --arg reason "$VENV_MSG" '{"hookSpecificOutput": {"hookEventName": "Stop", "decision": "block", "reason": $reason}}'
+  jq -nc --arg reason "$VENV_MSG" '{"decision": "block", "reason": $reason}'
   exit 0
 fi
 
@@ -170,9 +167,9 @@ if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
 - First, install codeflash by running \`${INSTALL_CMD}\` in \`${CHECK_DIR}\`."
   fi
 
-  SETUP_MSG="ACTION REQUIRED: Python files were changed in the latest commit, but codeflash is not configured yet.
+  SETUP_MSG="Python files were changed in the latest commit, but codeflash is not configured yet.
 
-You MUST ask the user the following two questions before proceeding with anything else:
+Ask the user if they'd like to set up codeflash to optimize their Python code for performance. If they agree, ask them:
 1. What is the relative path to the root of their Python module? (e.g. \".\", \"src\", \"src/mypackage\")
 2. What is the relative path to their tests folder? (e.g. \"tests\", \"test\", \"src/tests\")
 
@@ -187,40 +184,37 @@ tests-root = \"<tests folder>\"
 ignore-paths = []
 formatter-cmds = [\"disabled\"]
 
-Once the pyproject.toml configuration is written, you MUST immediately run \`codeflash --subagent\` as a background Bash task (run_in_background: true). Do NOT skip this step."
+Once the pyproject.toml configuration is written, run \`codeflash --subagent\` as a background Bash task (run_in_background: true).
 
-  # Set flag so other hooks can enforce this if Claude ignores the block
-  FLAG_FILE="/tmp/.codeflash-needs-config-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
-  echo "1" > "$FLAG_FILE"
+If the user declines, do nothing and continue normally."
 
-  jq -nc --arg reason "$SETUP_MSG" '{"hookSpecificOutput": {"hookEventName": "Stop", "decision": "block", "reason": $reason}}'
+  jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason}'
   exit 0
 fi
 
 # Codeflash is configured but not installed in the venv
 if [ "$CODEFLASH_INSTALLED" != "true" ]; then
-  INSTALL_MSG="ACTION REQUIRED: Python files were changed in the latest commit, but codeflash is not installed in the active virtual environment (\`$VIRTUAL_ENV\`).
+  INSTALL_MSG="Python files were changed in the latest commit, but codeflash is not installed in the active virtual environment (\`$VIRTUAL_ENV\`).
 
-You MUST ask the user if they'd like to install codeflash before proceeding with anything else. The detected install command is:
+Ask the user if they'd like to install codeflash to optimize their Python code for performance. The install command is:
 
   ${INSTALL_CMD}
 
-If the user agrees, run the install command in \`${CHECK_DIR}\`, then proceed to run codeflash via \`codeflash --subagent\`."
+If the user agrees, run the install command in \`${CHECK_DIR}\`, then run \`codeflash --subagent\` as a background Bash task (run_in_background: true).
 
-  jq -nc --arg reason "$INSTALL_MSG" '{"hookSpecificOutput": {"hookEventName": "Stop", "decision": "block", "reason": $reason}}'
+If the user declines, do nothing and continue normally."
+
+  jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason}'
   exit 0
 fi
 
-# Run codeflash directly in the background from the hook
-ACTIVATE_CMD="source $VIRTUAL_ENV/bin/activate"
+# Instruct Claude to run codeflash as a background subagent
 if [ -n "$PYPROJECT_DIR" ] && [ "$PYPROJECT_DIR" != "$PWD" ]; then
-  RUN_CMD="$ACTIVATE_CMD && cd $PYPROJECT_DIR && $CODEFLASH_BIN --subagent"
+  RUN_CMD="cd $PYPROJECT_DIR && $CODEFLASH_BIN --subagent"
 else
-  RUN_CMD="$ACTIVATE_CMD && $CODEFLASH_BIN --subagent"
+  RUN_CMD="$CODEFLASH_BIN --subagent"
 fi
 
-nohup bash -c "$RUN_CMD" > /tmp/codeflash-run.log 2>&1 &
+MESSAGE="Python files were changed in the latest commit. Ask the user if they'd like to run codeflash to optimize their Python code for performance. If they agree, run \`${RUN_CMD}\` as a background Bash task (run_in_background: true). If they decline, do nothing and continue normally."
 
-MESSAGE="Codeflash is optimizing Python files in the background. Continue as normal."
-
-jq -nc --arg reason "$MESSAGE" '{"hookSpecificOutput": {"hookEventName": "Stop", "decision": "block", "reason": $reason}}'
+jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason}'

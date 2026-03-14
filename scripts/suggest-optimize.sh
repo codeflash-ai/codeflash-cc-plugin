@@ -24,26 +24,14 @@ if [ -z "$PY_CHANGED" ]; then
   exit 0
 fi
 
-# Don't trigger more than once for the same diff in a session.
+# Don't trigger more than once for the same diff.
 # Use a hash of the Python-file diff content as the dedup key.
-# Find the Claude Code ancestor process for a stable session-scoped marker.
 DIFF_HASH=$(git diff HEAD -- '*.py' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
-CLAUDE_PID=""
-_pid=$$
-while [ "$_pid" -gt 1 ] 2>/dev/null; do
-  _ppid=$(ps -o ppid= -p "$_pid" 2>/dev/null | tr -d ' ') || break
-  _comm=$(ps -o comm= -p "$_ppid" 2>/dev/null | tr -d ' ') || break
-  case "$_comm" in
-    *claude*) CLAUDE_PID="$_ppid"; break ;;
-  esac
-  _pid="$_ppid"
-done
-SESSION_KEY="${CLAUDE_PID:-nosession}"
-SESSION_MARKER="/tmp/codeflash-suggest-${SESSION_KEY}-${REPO_ROOT//\//_}"
-if [ -f "$SESSION_MARKER" ] && grep -qF "$DIFF_HASH" "$SESSION_MARKER" 2>/dev/null; then
+SEEN_MARKER="/tmp/codeflash-seen-${REPO_ROOT//\//_}"
+if [ -f "$SEEN_MARKER" ] && grep -qF "$DIFF_HASH" "$SEEN_MARKER" 2>/dev/null; then
   exit 0
 fi
-echo "$DIFF_HASH" >> "$SESSION_MARKER"
+echo "$DIFF_HASH" >> "$SEEN_MARKER"
 
 # Walk from $PWD upward to $REPO_ROOT looking for pyproject.toml.
 # Sets: PYPROJECT_DIR, PYPROJECT_PATH, PYPROJECT_CONFIGURED

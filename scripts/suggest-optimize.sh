@@ -4,10 +4,6 @@
 
 set -euo pipefail
 
-#LOGFILE="/tmp/codeflash-hook-debug.log"
-#exec 2>>"$LOGFILE"
-#set -x
-
 # Read stdin (Stop hook pipes context as JSON via stdin)
 INPUT=$(cat)
 
@@ -20,8 +16,34 @@ fi
 
 ## Per-project tracker keyed on repo root (resolve symlinks so PWD and REPO_ROOT share a prefix)
 REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
-#cd "$(pwd -P)"
-#LAST_SEEN="/tmp/.codeflash-last-suggested-$(echo -n "$REPO_ROOT" | md5 -q 2>/dev/null || md5sum | cut -d' ' -f1)"
+cd "$(pwd -P)"
+
+# Only trigger if Python files have changed in the current diff (staged + unstaged vs HEAD)
+PY_CHANGED=$(git diff HEAD --name-only -- '*.py' 2>/dev/null || true)
+if [ -z "$PY_CHANGED" ]; then
+  exit 0
+fi
+
+# Don't trigger more than once for the same diff in a session.
+# Use a hash of the Python-file diff content as the dedup key.
+# Find the Claude Code ancestor process for a stable session-scoped marker.
+DIFF_HASH=$(git diff HEAD -- '*.py' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+CLAUDE_PID=""
+_pid=$$
+while [ "$_pid" -gt 1 ] 2>/dev/null; do
+  _ppid=$(ps -o ppid= -p "$_pid" 2>/dev/null | tr -d ' ') || break
+  _comm=$(ps -o comm= -p "$_ppid" 2>/dev/null | tr -d ' ') || break
+  case "$_comm" in
+    *claude*) CLAUDE_PID="$_ppid"; break ;;
+  esac
+  _pid="$_ppid"
+done
+SESSION_KEY="${CLAUDE_PID:-nosession}"
+SESSION_MARKER="/tmp/codeflash-suggest-${SESSION_KEY}-${REPO_ROOT//\//_}"
+if [ -f "$SESSION_MARKER" ] && grep -qF "$DIFF_HASH" "$SESSION_MARKER" 2>/dev/null; then
+  exit 0
+fi
+echo "$DIFF_HASH" >> "$SESSION_MARKER"
 
 # Walk from $PWD upward to $REPO_ROOT looking for pyproject.toml.
 # Sets: PYPROJECT_DIR, PYPROJECT_PATH, PYPROJECT_CONFIGURED
@@ -53,32 +75,6 @@ find_pyproject() {
     esac
   done
 }
-
-
-## Get current HEAD; exit silently if not in a git repo
-#HEAD=$(git rev-parse HEAD 2>/dev/null) || exit 0
-#
-## Read the previous HEAD we saw (empty if first check)
-#PREV=$(cat "$LAST_SEEN" 2>/dev/null || echo "")
-#
-## If HEAD hasn't changed since last check, nothing new to optimize
-#if [ -n "$PREV" ] && [ "$PREV" = "$HEAD" ]; then
-#  exit 0
-#fi
-
-## Determine changed Python files since last seen commit
-#if [ -n "$PREV" ] && git merge-base --is-ancestor "$PREV" HEAD 2>/dev/null; then
-#  PY_FILES=$(git diff --name-only "$PREV" HEAD -- '*.py' 2>/dev/null || true)
-#else
-#  PY_FILES=$(git diff --name-only HEAD~1 HEAD -- '*.py' 2>/dev/null || true)
-#fi
-
-## Always update last-seen to current HEAD
-#echo "$HEAD" > "$LAST_SEEN"
-#
-#if [ -z "$PY_FILES" ]; then
-#  exit 0
-#fi
 
 # Discover pyproject.toml
 find_pyproject

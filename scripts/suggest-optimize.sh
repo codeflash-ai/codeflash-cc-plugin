@@ -238,6 +238,6 @@ else
   RUN_CMD="$CODEFLASH_BIN --subagent"
 fi
 
-MESSAGE="Python files were changed in a recent commit. Ask the user if they'd like to run codeflash to optimize their Python code for performance. If they agree, run \`${RUN_CMD}\` as a background Bash task (run_in_background: true). If they decline, do nothing and continue normally."
+MESSAGE="Python files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the Python code for performance."
 
 jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason}'

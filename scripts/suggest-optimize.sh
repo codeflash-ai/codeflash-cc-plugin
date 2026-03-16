@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# Stop hook: detect Python changes and ask the user if they'd like to run
-# codeflash to optimize their code. Fires when Claude is about to finish its response.
+# Stop hook: detect new Python commits since the session started and ask the
+# user if they'd like to run codeflash to optimize their code.
+# Fires when Claude is about to finish its response.
 
 set -euo pipefail
+
+LOGFILE="/tmp/codeflash-hook-debug.log"
+exec 2>>"$LOGFILE"
+set -x
 
 # Read stdin (Stop hook pipes context as JSON via stdin)
 INPUT=$(cat)
@@ -18,20 +23,54 @@ fi
 REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
 cd "$(pwd -P)"
 
-# Only trigger if Python files have changed in the current diff (staged + unstaged vs HEAD)
-PY_CHANGED=$(git diff HEAD --name-only -- '*.py' 2>/dev/null || true)
-if [ -z "$PY_CHANGED" ]; then
+# --- Detect new Python commits since session started ---
+
+# Extract transcript_path from hook input to determine session start time
+TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
+if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
   exit 0
 fi
 
-# Don't trigger more than once for the same diff.
-# Use a hash of the Python-file diff content as the dedup key.
-DIFF_HASH=$(git diff HEAD -- '*.py' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
-SEEN_MARKER="/tmp/codeflash-seen-${REPO_ROOT//\//_}"
-if [ -f "$SEEN_MARKER" ] && grep -qF "$DIFF_HASH" "$SEEN_MARKER" 2>/dev/null; then
+# Get the transcript file's creation (birth) time as the session start timestamp.
+# This predates any commits Claude could have made in this session.
+get_file_birth_time() {
+  local file="$1"
+  if [[ "$(uname)" == "Darwin" ]]; then
+    stat -f %B "$file"
+  else
+    local btime
+    btime=$(stat -c %W "$file" 2>/dev/null || echo "0")
+    if [ "$btime" = "0" ] || [ -z "$btime" ]; then
+      stat -c %Y "$file"
+    else
+      echo "$btime"
+    fi
+  fi
+}
+
+SESSION_START=$(get_file_birth_time "$TRANSCRIPT_PATH")
+if [ -z "$SESSION_START" ] || [ "$SESSION_START" = "0" ]; then
   exit 0
 fi
-echo "$DIFF_HASH" >> "$SEEN_MARKER"
+
+# Find commits with Python files made after the session started
+PY_COMMITS=$(git log --after="@$SESSION_START" --name-only --diff-filter=ACMR --pretty=format: -- '*.py' 2>/dev/null | sort -u | grep -v '^$' || true)
+if [ -z "$PY_COMMITS" ]; then
+  exit 0
+fi
+
+# Dedup: don't trigger twice for the same set of changes across sessions.
+# Use the project directory from transcript_path for state storage.
+PROJECT_DIR=$(dirname "$TRANSCRIPT_PATH")
+SEEN_MARKER="$PROJECT_DIR/codeflash-seen"
+
+COMMIT_HASH=$(git log --after="@$SESSION_START" --pretty=format:%H -- '*.py' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+if [ -f "$SEEN_MARKER" ] && grep -qF "$COMMIT_HASH" "$SEEN_MARKER" 2>/dev/null; then
+  exit 0
+fi
+echo "$COMMIT_HASH" >> "$SEEN_MARKER"
+
+# --- From here on, we know there are new Python commits to optimize ---
 
 # Walk from $PWD upward to $REPO_ROOT looking for pyproject.toml.
 # Sets: PYPROJECT_DIR, PYPROJECT_PATH, PYPROJECT_CONFIGURED
@@ -112,7 +151,7 @@ formatter-cmds = [\"disabled\"]
 3. Run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
   fi
 
-  VENV_MSG="Python files were changed in the latest commit, but no Python virtual environment was found.
+  VENV_MSG="Python files were changed in a recent commit, but no Python virtual environment was found.
 
 Ask the user if they'd like to set up codeflash to optimize their Python code for performance. If they agree, perform the following steps:
 
@@ -151,7 +190,7 @@ if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
 - First, install codeflash by running \`${INSTALL_CMD}\` in \`${CHECK_DIR}\`."
   fi
 
-  SETUP_MSG="Python files were changed in the latest commit, but codeflash is not configured yet.
+  SETUP_MSG="Python files were changed in a recent commit, but codeflash is not configured yet.
 
 Ask the user if they'd like to set up codeflash to optimize their Python code for performance. If they agree, ask them:
 1. What is the relative path to the root of their Python module? (e.g. \".\", \"src\", \"src/mypackage\")
@@ -178,7 +217,7 @@ fi
 
 # Codeflash is configured but not installed in the venv
 if [ "$CODEFLASH_INSTALLED" != "true" ]; then
-  INSTALL_MSG="Python files were changed in the latest commit, but codeflash is not installed in the active virtual environment (\`$VIRTUAL_ENV\`).
+  INSTALL_MSG="Python files were changed in a recent commit, but codeflash is not installed in the active virtual environment (\`$VIRTUAL_ENV\`).
 
 Ask the user if they'd like to install codeflash to optimize their Python code for performance. The install command is:
 
@@ -199,6 +238,6 @@ else
   RUN_CMD="$CODEFLASH_BIN --subagent"
 fi
 
-MESSAGE="Python files were changed in the latest commit. Ask the user if they'd like to run codeflash to optimize their Python code for performance. If they agree, run \`${RUN_CMD}\` as a background Bash task (run_in_background: true). If they decline, do nothing and continue normally."
+MESSAGE="Python files were changed in a recent commit. Ask the user if they'd like to run codeflash to optimize their Python code for performance. If they agree, run \`${RUN_CMD}\` as a background Bash task (run_in_background: true). If they decline, do nothing and continue normally."
 
 jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason}'

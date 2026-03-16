@@ -81,9 +81,10 @@ codeflash-cc-plugin/
 ├── agents/
 │   └── optimizer.md             # Background optimization agent
 ├── hooks/
-│   └── hooks.json               # PostToolUse hook for commit detection
+│   └── hooks.json               # Stop hook for commit detection
 ├── scripts/
-│   └── suggest-optimize.sh      # Detects Python commits, suggests /optimize
+│   ├── find-venv.sh             # Shared helper: find and activate a Python venv
+│   └── suggest-optimize.sh      # Detects Python changes, suggests /optimize
 ├── skills/
 │   └── optimize/
 │       └── SKILL.md             # /optimize slash command

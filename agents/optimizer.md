@@ -30,6 +30,7 @@ description: |
   </commentary>
   </example>
 
+model: inherit
 maxTurns: 15
 color: cyan
 tools: Read, Glob, Grep, Bash, Write, Edit

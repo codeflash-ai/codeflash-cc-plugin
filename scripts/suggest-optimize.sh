@@ -18,15 +18,16 @@ fi
 REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
 cd "$(pwd -P)"
 
-# Only trigger if Python files have changed in the current diff (staged + unstaged vs HEAD)
-PY_CHANGED=$(git diff HEAD --name-only -- '*.py' 2>/dev/null || true)
-if [ -z "$PY_CHANGED" ]; then
+# Only trigger if Python files have changed (uncommitted or in the latest commit)
+PY_UNCOMMITTED=$(git diff HEAD --name-only -- '*.py' 2>/dev/null || true)
+PY_COMMITTED=$(git diff HEAD~1 HEAD --name-only -- '*.py' 2>/dev/null || true)
+if [ -z "$PY_UNCOMMITTED" ] && [ -z "$PY_COMMITTED" ]; then
   exit 0
 fi
 
 # Don't trigger more than once for the same diff.
-# Use a hash of the Python-file diff content as the dedup key.
-DIFF_HASH=$(git diff HEAD -- '*.py' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+# Use a hash of both uncommitted and committed Python diffs as the dedup key.
+DIFF_HASH=$( (git diff HEAD -- '*.py' 2>/dev/null; git diff HEAD~1 HEAD -- '*.py' 2>/dev/null) | shasum -a 256 | cut -d' ' -f1)
 SEEN_MARKER="/tmp/codeflash-seen-${REPO_ROOT//\//_}"
 if [ -f "$SEEN_MARKER" ] && grep -qF "$DIFF_HASH" "$SEEN_MARKER" 2>/dev/null; then
   exit 0

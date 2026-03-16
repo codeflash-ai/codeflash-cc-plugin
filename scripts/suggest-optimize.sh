@@ -240,4 +240,4 @@ fi
 
 MESSAGE="Python files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the Python code for performance."
 
-jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason}'
+jq -nc --arg msg "$MESSAGE" '{"decision": "approve", "reason": "Python changes detected, triggering codeflash optimization", "systemMessage": $msg}'

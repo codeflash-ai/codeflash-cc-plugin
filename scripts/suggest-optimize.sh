@@ -25,9 +25,8 @@ cd "$(pwd -P)"
 
 # --- Cheap gate: skip if HEAD hasn't changed since last check ---
 CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null) || exit 0
-STATE_DIR="/tmp/codeflash-state"
-REPO_HASH=$(echo "$REPO_ROOT" | shasum -a 256 | cut -d' ' -f1)
-LAST_HEAD_FILE="$STATE_DIR/$REPO_HASH-head"
+STATE_DIR="$REPO_ROOT/.claude"
+LAST_HEAD_FILE="$STATE_DIR/.codeflash-last-head"
 mkdir -p "$STATE_DIR"
 if [ -f "$LAST_HEAD_FILE" ] && [ "$(cat "$LAST_HEAD_FILE")" = "$CURRENT_HEAD" ]; then
   exit 0

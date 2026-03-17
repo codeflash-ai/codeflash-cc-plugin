@@ -7,13 +7,13 @@
   },
   "metadata": {
     "description": "Codeflash plugin for Claude Code — optimize Python code for performance",
-    "version": "0.1.9"
+    "version": "0.1.10"
   },
   "plugins": [
     {
       "name": "codeflash",
       "description": "Run codeflash as a background agent to optimize Python code for performance",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "author": {
         "name": "Codeflash",
         "email": "support@codeflash.ai"

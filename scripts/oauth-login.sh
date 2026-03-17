@@ -206,17 +206,28 @@ PYEOF
 SERVER_PID=$!
 
 # --- Open browser ---
-if [[ "$(uname)" == "Darwin" ]]; then
-  open "$AUTH_URL" 2>/dev/null || true
-elif command -v xdg-open >/dev/null 2>&1; then
-  xdg-open "$AUTH_URL" 2>/dev/null || true
-fi
-
 echo "Opening browser for Codeflash login..."
 echo ""
-echo "If the browser didn't open, visit this URL:"
+echo "If the browser doesn't open, visit this URL manually:"
 echo "$AUTH_URL"
 echo ""
+
+BROWSER_OPENED=false
+if [[ "$(uname)" == "Darwin" ]]; then
+  if timeout 5 open "$AUTH_URL" 2>/dev/null; then
+    BROWSER_OPENED=true
+  fi
+elif command -v xdg-open >/dev/null 2>&1; then
+  if timeout 5 xdg-open "$AUTH_URL" 2>/dev/null; then
+    BROWSER_OPENED=true
+  fi
+fi
+
+if [ "$BROWSER_OPENED" = false ]; then
+  echo "Could not open browser automatically (headless environment?)."
+  echo "Please open the URL above in your browser to complete login."
+  echo ""
+fi
 
 # --- Wait for callback ---
 WAITED=0

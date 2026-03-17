@@ -23,15 +23,6 @@ fi
 REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
 cd "$(pwd -P)"
 
-# --- Cheap gate: skip if HEAD hasn't changed since last check ---
-CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null) || exit 0
-STATE_DIR="$REPO_ROOT/.claude"
-LAST_HEAD_FILE="$STATE_DIR/.codeflash-last-head"
-mkdir -p "$STATE_DIR"
-if [ -f "$LAST_HEAD_FILE" ] && [ "$(cat "$LAST_HEAD_FILE")" = "$CURRENT_HEAD" ]; then
-  exit 0
-fi
-
 # --- Check if codeflash is already auto-allowed in .claude/settings.json ---
 CODEFLASH_AUTO_ALLOWED="false"
 SETTINGS_JSON="$REPO_ROOT/.claude/settings.json"
@@ -48,6 +39,15 @@ TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null 
 if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
   exit 0
 fi
+TRANSCRIPT_DIR=$(dirname "$TRANSCRIPT_PATH")
+
+# --- Cheap gate: skip if HEAD hasn't changed since last check ---
+CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null) || exit 0
+LAST_HEAD_FILE="$TRANSCRIPT_DIR/codeflash-last-head"
+if [ -f "$LAST_HEAD_FILE" ] && [ "$(cat "$LAST_HEAD_FILE")" = "$CURRENT_HEAD" ]; then
+  exit 0
+fi
+echo "$CURRENT_HEAD" > "$LAST_HEAD_FILE"
 
 # Get the transcript file's creation (birth) time as the session start timestamp.
 # This predates any commits Claude could have made in this session.
@@ -88,8 +88,6 @@ if echo "$CHANGED_COMMITS" | grep -qE '\.(js|ts|jsx|tsx)$'; then
 fi
 
 # Dedup: don't trigger twice for the same set of changes across sessions.
-# Use the project directory from transcript_path for state storage.
-TRANSCRIPT_DIR=$(dirname "$TRANSCRIPT_PATH")
 SEEN_MARKER="$TRANSCRIPT_DIR/codeflash-seen"
 
 COMMIT_HASH=$(git log --after="@$SESSION_START" --pretty=format:%H -- '*.py' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)

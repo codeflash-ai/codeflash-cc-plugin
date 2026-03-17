@@ -130,13 +130,13 @@ if [ -z "${VIRTUAL_ENV:-}" ]; then
     fi
 
     PYPROJECT_SETUP="
-3. Ask the user the following two questions:
-   a. What is the relative path to the root of their Python module? (e.g. \".\", \"src\", \"src/mypackage\")
-   b. What is the relative path to their tests folder? (e.g. \"tests\", \"test\", \"src/tests\")
+3. Determine the following two values by inspecting the project structure:
+   a. The relative path to the root of the Python module (e.g. \".\", \"src\", \"src/mypackage\") — look for directories containing \`__init__.py\` or top-level \`.py\` files.
+   b. The relative path to the tests folder (e.g. \"tests\", \"test\", \"src/tests\") — look for existing directories named \`tests\` or \`test\`, or folders containing files that start with \`test_\`.
 
-4. After getting the answers:
+4. Once determined:
    - If the tests folder does not exist, create it with mkdir -p.
-   - ${TARGET_MSG} (create the file if it does not exist), adding the following section with the user's answers substituted:
+   - ${TARGET_MSG} (create the file if it does not exist), adding the following section with the discovered values substituted:
 
 [tool.codeflash]
 # All paths are relative to this pyproject.toml's directory.
@@ -153,14 +153,13 @@ formatter-cmds = [\"disabled\"]
 
   VENV_MSG="Python files were changed in a recent commit, but no Python virtual environment was found.
 
-Ask the user if they'd like to set up codeflash to optimize their Python code for performance. If they agree, perform the following steps:
+Set up codeflash to optimize the Python code for performance. Perform the following steps:
 
 1. Create a virtual environment by running: \`python3 -m venv .venv\` in \`$REPO_ROOT\`, then activate it by running: \`source $REPO_ROOT/.venv/bin/activate\`.
 
 2. Install codeflash by running: \`${INSTALL_CMD}\`.
 ${PYPROJECT_SETUP}
-
-If the user declines, do nothing and continue normally."
+"
 
   jq -nc --arg reason "$VENV_MSG" '{"decision": "block", "reason": $reason}'
   exit 0
@@ -192,13 +191,13 @@ if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
 
   SETUP_MSG="Python files were changed in a recent commit, but codeflash is not configured yet.
 
-Ask the user if they'd like to set up codeflash to optimize their Python code for performance. If they agree, ask them:
-1. What is the relative path to the root of their Python module? (e.g. \".\", \"src\", \"src/mypackage\")
-2. What is the relative path to their tests folder? (e.g. \"tests\", \"test\", \"src/tests\")
+Set up codeflash to optimize the Python code for performance. Determine the following by inspecting the project structure:
+1. The relative path to the root of the Python module (e.g. \".\", \"src\", \"src/mypackage\") — look for directories containing \`__init__.py\` or top-level \`.py\` files.
+2. The relative path to the tests folder (e.g. \"tests\", \"test\", \"src/tests\") — look for existing directories named \`tests\` or \`test\`, or folders containing files that start with \`test_\`.
 
-After getting the answers:${INSTALL_STEP}
+Once determined:${INSTALL_STEP}
 - If the tests folder does not exist, create it with mkdir -p.
-- ${TARGET_MSG} (create the file if it does not exist), adding the following section with the user's answers substituted:
+- ${TARGET_MSG} (create the file if it does not exist), adding the following section with the discovered values substituted:
 
 [tool.codeflash]
 # All paths are relative to this pyproject.toml's directory.
@@ -207,9 +206,7 @@ tests-root = \"<tests folder>\"
 ignore-paths = []
 formatter-cmds = [\"disabled\"]
 
-Once the pyproject.toml configuration is written, run \`codeflash --subagent\` as a background Bash task (run_in_background: true).
-
-If the user declines, do nothing and continue normally."
+Once the pyproject.toml configuration is written, run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
 
   jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason}'
   exit 0
@@ -219,13 +216,11 @@ fi
 if [ "$CODEFLASH_INSTALLED" != "true" ]; then
   INSTALL_MSG="Python files were changed in a recent commit, but codeflash is not installed in the active virtual environment (\`$VIRTUAL_ENV\`).
 
-Ask the user if they'd like to install codeflash to optimize their Python code for performance. The install command is:
+Install codeflash to optimize the Python code for performance by running:
 
   ${INSTALL_CMD}
 
-If the user agrees, run the install command in \`${CHECK_DIR}\`, then run \`codeflash --subagent\` as a background Bash task (run_in_background: true).
-
-If the user declines, do nothing and continue normally."
+in \`${CHECK_DIR}\`, then run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
 
   jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason}'
   exit 0

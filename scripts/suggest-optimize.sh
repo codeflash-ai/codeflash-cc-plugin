@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop hook: detect new Python/JS/TS commits since the session started and ask the
+# Stop hook: detect new Python/Java/JS/TS commits since the session started and ask the
 # user if they'd like to run codeflash to optimize their code.
 # Fires when Claude is about to finish its response.
 
@@ -32,7 +32,7 @@ if [ -f "$SETTINGS_JSON" ]; then
   fi
 fi
 
-# --- Detect new commits with Python/JS/TS files since session started ---
+# --- Detect new commits with Python/Java/JS/TS files since session started ---
 
 # Extract transcript_path from hook input to determine session start time
 TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
@@ -62,8 +62,8 @@ if [ -z "$SESSION_START" ] || [ "$SESSION_START" = "0" ]; then
   exit 0
 fi
 
-# Find commits with Python/JS/TS files made after the session started
-CHANGED_COMMITS=$(git log --after="@$SESSION_START" --name-only --diff-filter=ACMR --pretty=format: -- '*.py' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | sort -u | grep -v '^$' || true)
+# Find commits with Python/Java/JS/TS files made after the session started
+CHANGED_COMMITS=$(git log --after="@$SESSION_START" --name-only --diff-filter=ACMR --pretty=format: -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | sort -u | grep -v '^$' || true)
 if [ -z "$CHANGED_COMMITS" ]; then
   exit 0
 fi
@@ -73,7 +73,7 @@ fi
 TRANSCRIPT_DIR=$(dirname "$TRANSCRIPT_PATH")
 SEEN_MARKER="$TRANSCRIPT_DIR/codeflash-seen"
 
-COMMIT_HASH=$(git log --after="@$SESSION_START" --pretty=format:%H -- '*.py' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+COMMIT_HASH=$(git log --after="@$SESSION_START" --pretty=format:%H -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
 if [ -f "$SEEN_MARKER" ] && grep -qF "$COMMIT_HASH" "$SEEN_MARKER" 2>/dev/null; then
   exit 0
 fi
@@ -90,6 +90,16 @@ detect_project() {
   PROJECT_CONFIGURED="false"
   local search_dir="$PWD"
   while true; do
+    # Check codeflash.toml first (Java projects)
+    if [ -f "$search_dir/codeflash.toml" ]; then
+      PROJECT_TYPE="java"
+      PROJECT_DIR="$search_dir"
+      PROJECT_CONFIG_PATH="$search_dir/codeflash.toml"
+      if grep -q '\[tool\.codeflash\]' "$search_dir/codeflash.toml" 2>/dev/null; then
+        PROJECT_CONFIGURED="true"
+      fi
+      break
+    fi
     if [ -f "$search_dir/pyproject.toml" ]; then
       PROJECT_TYPE="python"
       PROJECT_DIR="$search_dir"
@@ -215,6 +225,76 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
   MESSAGE="JS/TS files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the JavaScript/TypeScript code for performance."
 
   # Append auto-allow setup instructions if not already configured
+  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
+    MESSAGE="${MESSAGE}
+
+Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
+  fi
+
+  jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason}'
+  exit 0
+fi
+
+# --- Java project path -----------------------------------------------------
+if [ "$PROJECT_TYPE" = "java" ]; then
+  INSTALL_CMD="pip install codeflash"
+
+  # Find codeflash binary: check PATH first, then uv run (Java projects don't use venvs)
+  CODEFLASH_BIN=""
+  CODEFLASH_INSTALLED="false"
+  if command -v codeflash >/dev/null 2>&1; then
+    CODEFLASH_BIN="codeflash"
+    CODEFLASH_INSTALLED="true"
+  elif uv run codeflash --version >/dev/null 2>&1; then
+    CODEFLASH_BIN="uv run codeflash"
+    CODEFLASH_INSTALLED="true"
+  fi
+
+  # Not installed
+  if [ "$CODEFLASH_INSTALLED" != "true" ]; then
+    INSTALL_MSG="Java files were changed in a recent commit, but codeflash is not installed.
+
+Install codeflash to optimize the Java code for performance by running:
+
+  ${INSTALL_CMD}
+
+Then run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
+
+    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
+      INSTALL_MSG="${INSTALL_MSG}
+
+Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
+    fi
+
+    jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason}'
+    exit 0
+  fi
+
+  # Not configured
+  if [ "$PROJECT_CONFIGURED" != "true" ]; then
+    SETUP_MSG="Java files were changed in a recent commit, but codeflash is not configured yet.
+
+Run \`${CODEFLASH_BIN} init --yes\` in \`${CHECK_DIR}\` to automatically detect and configure the Java project, then run \`${CODEFLASH_BIN} --subagent\` as a background Bash task (run_in_background: true) to optimize the code for performance."
+
+    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
+      SETUP_MSG="${SETUP_MSG}
+
+Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
+    fi
+
+    jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason}'
+    exit 0
+  fi
+
+  # Everything ready — build codeflash command for Java
+  if [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "$PWD" ]; then
+    RUN_CMD="cd $PROJECT_DIR && $CODEFLASH_BIN --subagent"
+  else
+    RUN_CMD="$CODEFLASH_BIN --subagent"
+  fi
+
+  MESSAGE="Java files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the Java code for performance."
+
   if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
     MESSAGE="${MESSAGE}
 

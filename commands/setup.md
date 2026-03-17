@@ -16,4 +16,4 @@ Help the user configure their project so that `codeflash --subagent` runs automa
 
 4. If not configured, add `Bash(*codeflash*)` to the `permissions.allow` array in `.claude/settings.json`. Create the file and any necessary parent directories if they don't exist. Preserve any existing settings.
 
-5. Confirm to the user what was added and explain: "Codeflash will now run automatically in the background after commits that change Python files, without prompting for permission each time."
+5. Confirm to the user what was added and explain: "Codeflash will now run automatically in the background after commits that change code files, without prompting for permission each time."

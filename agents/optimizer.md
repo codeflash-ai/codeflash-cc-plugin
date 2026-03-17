@@ -42,6 +42,101 @@ You are a thin-wrapper agent that runs the codeflash CLI to optimize Python code
 
 Follow these steps in order:
 
+### 0. Check API Key
+
+Before anything else, check if a Codeflash API key is available:
+
+```bash
+echo "${CODEFLASH_API_KEY:-}"; grep '^export CODEFLASH_API_KEY="cf-' ~/.zshrc ~/.bashrc ~/.profile 2>/dev/null || true
+```
+
+If the environment variable is set and starts with `cf-`, proceed to Step 1.
+
+If the env var is empty but a key was found in a shell RC file, source that file to load it:
+
+```bash
+source ~/.zshrc  # or whichever file had the key
+```
+
+Then proceed to Step 1.
+
+If **no API key is found anywhere**, perform an OAuth PKCE login flow to authenticate the user. Run this script exactly:
+
+```bash
+set -euo pipefail
+CFWEBAPP_BASE_URL="https://app.codeflash.ai"
+TOKEN_URL="${CFWEBAPP_BASE_URL}/codeflash/auth/oauth/token"
+CLIENT_ID="cf-cli-app"
+
+CODE_VERIFIER=$(openssl rand -base64 48 | tr -d '=/+\n' | head -c 64)
+CODE_CHALLENGE=$(printf '%s' "$CODE_VERIFIER" | openssl dgst -sha256 -binary | openssl base64 -A | tr '+/' '-_' | tr -d '=')
+STATE=$(openssl rand -hex 16)
+PORT=$(python3 -c "import socket; s=socket.socket(); s.bind(('',0)); print(s.getsockname()[1]); s.close()")
+REDIRECT_URI="http://localhost:${PORT}/callback"
+ENCODED_REDIRECT=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${REDIRECT_URI}'))")
+AUTH_URL="${CFWEBAPP_BASE_URL}/codeflash/auth?response_type=code&client_id=${CLIENT_ID}&code_challenge=${CODE_CHALLENGE}&code_challenge_method=sha256&state=${STATE}&redirect_uri=${ENCODED_REDIRECT}"
+
+RESULT_FILE=$(mktemp /tmp/codeflash-oauth-XXXXXX.json)
+
+PORT=$PORT STATE=$STATE RESULT_FILE=$RESULT_FILE python3 -c "
+import http.server, urllib.parse, json, os, threading
+port, state, rf = int(os.environ['PORT']), os.environ['STATE'], os.environ['RESULT_FILE']
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        p = urllib.parse.urlparse(self.path)
+        if p.path != '/callback':
+            self.send_response(404); self.end_headers(); return
+        params = urllib.parse.parse_qs(p.query)
+        code, st, err = params.get('code',[None])[0], params.get('state',[None])[0], params.get('error',[None])[0]
+        self.send_response(200); self.send_header('Content-type','text/html'); self.end_headers()
+        if err or not code or st != state:
+            self.wfile.write(b'<h2>Authentication failed.</h2>')
+            with open(rf,'w') as f: json.dump({'error': err or 'state_mismatch'}, f)
+        else:
+            self.wfile.write(b'<h2>Success! You can close this window.</h2>')
+            with open(rf,'w') as f: json.dump({'code': code}, f)
+        threading.Thread(target=self.server.shutdown, daemon=True).start()
+    def log_message(self, *a): pass
+http.server.HTTPServer(('localhost', port), H).serve_forever()
+" &
+SERVER_PID=$!
+
+if [[ "$(uname)" == "Darwin" ]]; then open "$AUTH_URL" 2>/dev/null || true
+elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$AUTH_URL" 2>/dev/null || true; fi
+
+echo "Opening browser for Codeflash login..."
+echo "If the browser didn't open, visit: $AUTH_URL"
+
+WAITED=0
+while [ ! -s "$RESULT_FILE" ] && [ "$WAITED" -lt 180 ]; do sleep 1; WAITED=$((WAITED + 1)); done
+kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true
+
+AUTH_CODE=$(python3 -c "import json; print(json.load(open('${RESULT_FILE}')).get('code',''))" 2>/dev/null || true)
+rm -f "$RESULT_FILE"
+
+if [ -z "$AUTH_CODE" ]; then echo "Login failed"; exit 1; fi
+
+TOKEN_RESPONSE=$(curl -s -X POST "$TOKEN_URL" -H "Content-Type: application/json" \
+  -d "{\"grant_type\":\"authorization_code\",\"code\":\"${AUTH_CODE}\",\"code_verifier\":\"${CODE_VERIFIER}\",\"redirect_uri\":\"${REDIRECT_URI}\",\"client_id\":\"${CLIENT_ID}\"}")
+API_KEY=$(echo "$TOKEN_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null || true)
+
+if [ -z "$API_KEY" ] || [[ ! "$API_KEY" == cf-* ]]; then echo "Token exchange failed"; exit 1; fi
+
+SHELL_NAME=$(basename "${SHELL:-/bin/bash}")
+case "$SHELL_NAME" in zsh) RC="$HOME/.zshrc";; *) RC="$HOME/.bashrc";; esac
+[ -f "$RC" ] && grep -v '^export CODEFLASH_API_KEY=' "$RC" > "${RC}.tmp" && mv "${RC}.tmp" "$RC"
+echo "export CODEFLASH_API_KEY=\"${API_KEY}\"" >> "$RC"
+export CODEFLASH_API_KEY="$API_KEY"
+echo "Login successful! API key saved to $RC"
+```
+
+After the login script completes, **source the shell RC file** to load the key, then proceed to Step 1.
+
+If the login fails or times out, **stop and inform the user** that a Codeflash API key is required. They can get one manually at https://app.codeflash.ai/app/apikeys and set it with:
+```
+export CODEFLASH_API_KEY="cf-your-key-here"
+```
+
 ### 1. Locate Project Configuration
 
 Walk upward from the current working directory to the git repository root (`git rev-parse --show-toplevel`) looking for `pyproject.toml`. Use the **first** (closest to CWD) file found. Record:

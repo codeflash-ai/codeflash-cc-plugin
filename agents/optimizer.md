@@ -97,7 +97,7 @@ Use the `pyproject.toml` discovered in Step 1:
 
 When configuration is missing, automatically discover the paths:
 
-1. **Discover module root**: Use Glob and Read to find the relative path to the root of the Python module. Look for directories containing `__init__.py` or top-level `.py` files. Common patterns include `.`, `src`, or `src/<package_name>`. Choose the shallowest directory that contains Python source code (not tests).
+1. **Discover module root**: Use Glob and Read to find the relative path to the root of the Python module. the module root is where tests import from. for example, if the module root is abc/ then the tests would be importing code as \`from abc import xyz\`.
 
 2. **Discover tests folder**: Use Glob to find the relative path to the tests directory. Look for existing directories named `tests` or `test`, or folders containing files matching `test_*.py`. If no tests directory exists, default to `tests` and create it with `mkdir -p`.
 

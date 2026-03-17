@@ -95,13 +95,13 @@ Use the `pyproject.toml` discovered in Step 1:
 - **If `pyproject.toml` exists but has no `[tool.codeflash]`** → append the config section to that file.
 - **If no `pyproject.toml` was found** → create one at the git repository root.
 
-When configuration is missing, interactively set it up:
+When configuration is missing, automatically discover the paths:
 
-1. **Ask the user two questions** (use AskUserQuestion or prompt directly):
-   - **Module root**: "What is the relative path to the root of your Python module?" (e.g. `.`, `src`, `src/mypackage`)
-   - **Tests folder**: "What is the relative path to your tests folder?" (e.g. `tests`, `test`, `src/tests`)
+1. **Discover module root**: Use Glob and Read to find the relative path to the root of the Python module. Look for directories containing `__init__.py` or top-level `.py` files. Common patterns include `.`, `src`, or `src/<package_name>`. Choose the shallowest directory that contains Python source code (not tests).
 
-2. **Validate directories**: Check whether the tests folder the user provided exists. If it does **not** exist, create it with `mkdir -p`.
+2. **Discover tests folder**: Use Glob to find the relative path to the tests directory. Look for existing directories named `tests` or `test`, or folders containing files matching `test_*.py`. If no tests directory exists, default to `tests` and create it with `mkdir -p`.
+
+Do NOT ask the user to choose from a list of options. Use your tools to inspect the actual project structure and determine the correct paths.
 
 3. **Write the configuration**: Append the `[tool.codeflash]` section to the target `pyproject.toml`. Use exactly this format, substituting the user's answers:
 

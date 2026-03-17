@@ -130,9 +130,9 @@ if [ -z "${VIRTUAL_ENV:-}" ]; then
     fi
 
     PYPROJECT_SETUP="
-3. Determine the following two values by inspecting the project structure:
-   a. The relative path to the root of the Python module (e.g. \".\", \"src\", \"src/mypackage\") — look for directories containing \`__init__.py\` or top-level \`.py\` files.
-   b. The relative path to the tests folder (e.g. \"tests\", \"test\", \"src/tests\") — look for existing directories named \`tests\` or \`test\`, or folders containing files that start with \`test_\`.
+3. Automatically determine the following two values by exploring the project's actual directory structure using Glob and Read (do NOT present options to the user — discover the correct paths yourself):
+   a. The relative path to the root of the Python module — look for directories containing \`__init__.py\` or top-level \`.py\` files. Choose the shallowest directory with Python source code (not tests).
+   b. The relative path to the tests folder — look for existing directories named \`tests\` or \`test\`, or folders containing files that start with \`test_\`. If none exist, default to \`tests\`.
 
 4. Once determined:
    - If the tests folder does not exist, create it with mkdir -p.
@@ -191,9 +191,9 @@ if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
 
   SETUP_MSG="Python files were changed in a recent commit, but codeflash is not configured yet.
 
-Set up codeflash to optimize the Python code for performance. Determine the following by inspecting the project structure:
-1. The relative path to the root of the Python module (e.g. \".\", \"src\", \"src/mypackage\") — look for directories containing \`__init__.py\` or top-level \`.py\` files.
-2. The relative path to the tests folder (e.g. \"tests\", \"test\", \"src/tests\") — look for existing directories named \`tests\` or \`test\`, or folders containing files that start with \`test_\`.
+Set up codeflash to optimize the Python code for performance. Automatically determine the following by exploring the project's actual directory structure using Glob and Read (do NOT present options to the user — discover the correct paths yourself):
+1. The relative path to the root of the Python module — look for directories containing \`__init__.py\` or top-level \`.py\` files. Choose the shallowest directory with Python source code (not tests).
+2. The relative path to the tests folder — look for existing directories named \`tests\` or \`test\`, or folders containing files that start with \`test_\`. If none exist, default to \`tests\`.
 
 Once determined:${INSTALL_STEP}
 - If the tests folder does not exist, create it with mkdir -p.

@@ -68,6 +68,16 @@ if [ -z "$CHANGED_COMMITS" ]; then
   exit 0
 fi
 
+# Determine which language families actually had changes
+HAS_PYTHON_CHANGES="false"
+HAS_JS_CHANGES="false"
+if echo "$CHANGED_COMMITS" | grep -qE '\.py$'; then
+  HAS_PYTHON_CHANGES="true"
+fi
+if echo "$CHANGED_COMMITS" | grep -qE '\.(js|ts|jsx|tsx)$'; then
+  HAS_JS_CHANGES="true"
+fi
+
 # Dedup: don't trigger twice for the same set of changes across sessions.
 # Use the project directory from transcript_path for state storage.
 TRANSCRIPT_DIR=$(dirname "$TRANSCRIPT_PATH")
@@ -129,7 +139,7 @@ detect_project
 CHECK_DIR="${PROJECT_DIR:-$PWD}"
 
 # --- JS/TS project path ---------------------------------------------------
-if [ "$PROJECT_TYPE" = "js" ]; then
+if [ "$PROJECT_TYPE" = "js" ] && [ "$HAS_JS_CHANGES" = "true" ]; then
   INSTALL_CMD="npm install --save-dev codeflash"
 
   # Check if codeflash npm package is available
@@ -226,6 +236,10 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
 fi
 
 # --- Python project path ---------------------------------------------------
+if [ "$HAS_PYTHON_CHANGES" != "true" ]; then
+  exit 0
+fi
+
 INSTALL_CMD="pip install codeflash"
 
 # Only use codeflash from the current virtual environment.

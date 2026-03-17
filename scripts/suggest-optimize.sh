@@ -23,6 +23,16 @@ fi
 REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
 cd "$(pwd -P)"
 
+# --- Cheap gate: skip if HEAD hasn't changed since last check ---
+CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null) || exit 0
+STATE_DIR="/tmp/codeflash-state"
+REPO_HASH=$(echo "$REPO_ROOT" | shasum -a 256 | cut -d' ' -f1)
+LAST_HEAD_FILE="$STATE_DIR/$REPO_HASH-head"
+mkdir -p "$STATE_DIR"
+if [ -f "$LAST_HEAD_FILE" ] && [ "$(cat "$LAST_HEAD_FILE")" = "$CURRENT_HEAD" ]; then
+  exit 0
+fi
+
 # --- Check if codeflash is already auto-allowed in .claude/settings.json ---
 CODEFLASH_AUTO_ALLOWED="false"
 SETTINGS_JSON="$REPO_ROOT/.claude/settings.json"
@@ -65,8 +75,13 @@ fi
 # Find commits with Python files made after the session started
 PY_COMMITS=$(git log --after="@$SESSION_START" --name-only --diff-filter=ACMR --pretty=format: -- '*.py' 2>/dev/null | sort -u | grep -v '^$' || true)
 if [ -z "$PY_COMMITS" ]; then
+  # HEAD changed but no Python files — update the marker so we don't re-check
+  echo "$CURRENT_HEAD" > "$LAST_HEAD_FILE"
   exit 0
 fi
+
+# HEAD has new Python commits — record it so we don't re-trigger on subsequent turns
+echo "$CURRENT_HEAD" > "$LAST_HEAD_FILE"
 
 # Dedup: don't trigger twice for the same set of changes across sessions.
 # Use the project directory from transcript_path for state storage.

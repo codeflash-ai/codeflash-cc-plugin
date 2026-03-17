@@ -1,7 +1,7 @@
 {
   "name": "codeflash",
-  "description": "Run codeflash as a background agent to optimize Python code for performance",
-  "version": "0.1.11",
+  "description": "Run codeflash as a background agent to optimize code for performance",
+  "version": "0.1.10",
   "author": {
     "name": "Codeflash",
     "url": "https://codeflash.ai"
@@ -9,5 +9,5 @@
   "repository": "https://github.com/codeflash-ai/codeflash-cc-plugin",
   "homepage": "https://codeflash.ai",
   "license": "MIT",
-  "keywords": ["python", "optimization", "performance", "codeflash"]
+  "keywords": ["python", "javascript", "typescript", "optimization", "performance", "codeflash", "speedup", "runtime"]
 }

@@ -1,12 +1,12 @@
 # Codeflash Claude Code Plugin
 
-A minimal Claude Code plugin that runs [Codeflash](https://codeflash.ai) as a background agent to optimize Python code for performance.
+A minimal Claude Code plugin that runs [Codeflash](https://codeflash.ai) as a background agent to optimize Python, JavaScript, and TypeScript code for performance.
 
 ## Prerequisites
 
 - Claude Code v2.1.38 or later
-- [codeflash](https://pypi.org/project/codeflash/) installed in your project
-- Project initialized with `codeflash init` (creates `[tool.codeflash]` in `pyproject.toml`)
+- **Python projects**: [codeflash](https://pypi.org/project/codeflash/) installed in a virtual environment, configured via `[tool.codeflash]` in `pyproject.toml`
+- **JS/TS projects**: [codeflash](https://www.npmjs.com/package/codeflash) installed as a dev dependency (`npm install --save-dev codeflash`), configured via a `"codeflash"` key in `package.json`
 
 ## Installation
 
@@ -69,7 +69,7 @@ Run `/plugin` to open the plugin manager and confirm codeflash appears under the
 
 ### Auto-suggest after commits
 
-When you make a git commit that includes Python file changes, the plugin suggests running `/optimize` on those files.
+When you make a git commit that includes Python, JavaScript, or TypeScript file changes, the plugin suggests running `/optimize` on those files.
 
 ## Plugin Structure
 
@@ -84,7 +84,7 @@ codeflash-cc-plugin/
 │   └── hooks.json               # Stop hook for commit detection
 ├── scripts/
 │   ├── find-venv.sh             # Shared helper: find and activate a Python venv
-│   └── suggest-optimize.sh      # Detects Python changes, suggests /optimize
+│   └── suggest-optimize.sh      # Detects Python/JS/TS changes, suggests /optimize
 ├── skills/
 │   └── optimize/
 │       └── SKILL.md             # /optimize slash command
@@ -96,7 +96,7 @@ codeflash-cc-plugin/
 The plugin is a thin wrapper around the `codeflash` CLI:
 
 1. `/optimize` spawns a background optimizer agent
-2. Verifies codeflash is installed (via `pip install codeflash`) and configured
+2. Verifies codeflash is installed (`pip install codeflash` for Python, `npm install --save-dev codeflash` for JS/TS) and configured
 3. Runs the `codeflash` CLI with the appropriate flags
 4. Reports results (optimizations found, PRs created)
 

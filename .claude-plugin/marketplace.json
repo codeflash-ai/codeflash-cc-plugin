@@ -6,13 +6,13 @@
     "email": "support@codeflash.ai"
   },
   "metadata": {
-    "description": "Codeflash plugin for Claude Code — optimize Python code for performance",
+    "description": "Codeflash plugin for Claude Code — optimize code for performance",
     "version": "0.1.10"
   },
   "plugins": [
     {
       "name": "codeflash",
-      "description": "Run codeflash as a background agent to optimize Python code for performance",
+      "description": "Run codeflash as a background agent to optimize code for performance",
       "version": "0.1.10",
       "author": {
         "name": "Codeflash",
@@ -22,7 +22,7 @@
       "homepage": "https://codeflash.ai",
       "repository": "https://github.com/codeflash-ai/codeflash-cc-plugin",
       "license": "MIT",
-      "keywords": ["python", "optimization", "performance", "codeflash"],
+      "keywords": ["python", "javascript", "typescript", "optimization", "performance", "codeflash", "speedup", "runtime"],
       "category": "development"
     }
   ]

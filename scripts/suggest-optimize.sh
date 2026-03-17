@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop hook: detect new Python commits since the session started and ask the
+# Stop hook: detect new Python/JS/TS commits since the session started and ask the
 # user if they'd like to run codeflash to optimize their code.
 # Fires when Claude is about to finish its response.
 
@@ -32,7 +32,7 @@ if [ -f "$SETTINGS_JSON" ]; then
   fi
 fi
 
-# --- Detect new Python commits since session started ---
+# --- Detect new commits with Python/JS/TS files since session started ---
 
 # Extract transcript_path from hook input to determine session start time
 TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
@@ -62,38 +62,49 @@ if [ -z "$SESSION_START" ] || [ "$SESSION_START" = "0" ]; then
   exit 0
 fi
 
-# Find commits with Python files made after the session started
-PY_COMMITS=$(git log --after="@$SESSION_START" --name-only --diff-filter=ACMR --pretty=format: -- '*.py' 2>/dev/null | sort -u | grep -v '^$' || true)
-if [ -z "$PY_COMMITS" ]; then
+# Find commits with Python/JS/TS files made after the session started
+CHANGED_COMMITS=$(git log --after="@$SESSION_START" --name-only --diff-filter=ACMR --pretty=format: -- '*.py' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | sort -u | grep -v '^$' || true)
+if [ -z "$CHANGED_COMMITS" ]; then
   exit 0
 fi
 
 # Dedup: don't trigger twice for the same set of changes across sessions.
 # Use the project directory from transcript_path for state storage.
-PROJECT_DIR=$(dirname "$TRANSCRIPT_PATH")
-SEEN_MARKER="$PROJECT_DIR/codeflash-seen"
+TRANSCRIPT_DIR=$(dirname "$TRANSCRIPT_PATH")
+SEEN_MARKER="$TRANSCRIPT_DIR/codeflash-seen"
 
-COMMIT_HASH=$(git log --after="@$SESSION_START" --pretty=format:%H -- '*.py' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+COMMIT_HASH=$(git log --after="@$SESSION_START" --pretty=format:%H -- '*.py' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
 if [ -f "$SEEN_MARKER" ] && grep -qF "$COMMIT_HASH" "$SEEN_MARKER" 2>/dev/null; then
   exit 0
 fi
 echo "$COMMIT_HASH" >> "$SEEN_MARKER"
 
-# --- From here on, we know there are new Python commits to optimize ---
+# --- From here on, we know there are new commits to optimize ---
 
-# Walk from $PWD upward to $REPO_ROOT looking for pyproject.toml.
-# Sets: PYPROJECT_DIR, PYPROJECT_PATH, PYPROJECT_CONFIGURED
-find_pyproject() {
-  PYPROJECT_DIR=""
-  PYPROJECT_PATH=""
-  PYPROJECT_CONFIGURED="false"
+# Walk from $PWD upward to $REPO_ROOT looking for project config.
+# Sets: PROJECT_TYPE, PROJECT_DIR, PROJECT_CONFIG_PATH, PROJECT_CONFIGURED
+detect_project() {
+  PROJECT_TYPE=""
+  PROJECT_DIR=""
+  PROJECT_CONFIG_PATH=""
+  PROJECT_CONFIGURED="false"
   local search_dir="$PWD"
   while true; do
     if [ -f "$search_dir/pyproject.toml" ]; then
-      PYPROJECT_PATH="$search_dir/pyproject.toml"
-      PYPROJECT_DIR="$search_dir"
+      PROJECT_TYPE="python"
+      PROJECT_DIR="$search_dir"
+      PROJECT_CONFIG_PATH="$search_dir/pyproject.toml"
       if grep -q '\[tool\.codeflash\]' "$search_dir/pyproject.toml" 2>/dev/null; then
-        PYPROJECT_CONFIGURED="true"
+        PROJECT_CONFIGURED="true"
+      fi
+      break
+    fi
+    if [ -f "$search_dir/package.json" ]; then
+      PROJECT_TYPE="js"
+      PROJECT_DIR="$search_dir"
+      PROJECT_CONFIG_PATH="$search_dir/package.json"
+      if jq -e '.codeflash' "$search_dir/package.json" >/dev/null 2>&1; then
+        PROJECT_CONFIGURED="true"
       fi
       break
     fi
@@ -112,10 +123,109 @@ find_pyproject() {
   done
 }
 
-# Discover pyproject.toml
-find_pyproject
+# Discover project config
+detect_project
 
-CHECK_DIR="${PYPROJECT_DIR:-$PWD}"
+CHECK_DIR="${PROJECT_DIR:-$PWD}"
+
+# --- JS/TS project path ---------------------------------------------------
+if [ "$PROJECT_TYPE" = "js" ]; then
+  INSTALL_CMD="npm install --save-dev codeflash"
+
+  # Check if codeflash npm package is available
+  CODEFLASH_INSTALLED="false"
+  if (cd "$CHECK_DIR" && npx codeflash --version >/dev/null 2>&1); then
+    CODEFLASH_INSTALLED="true"
+  fi
+
+  # Not configured → prompt for config (+ install if needed)
+  if [ "$PROJECT_CONFIGURED" != "true" ]; then
+    if [ -n "$PROJECT_CONFIG_PATH" ]; then
+      TARGET_MSG="Add a \`\"codeflash\"\` key to \`$PROJECT_CONFIG_PATH\`"
+    else
+      TARGET_MSG="Create \`$REPO_ROOT/package.json\` (via \`npm init -y\`) and add a \`\"codeflash\"\` key"
+    fi
+
+    INSTALL_STEP=""
+    if [ "$CODEFLASH_INSTALLED" != "true" ]; then
+      INSTALL_STEP="
+- First, install codeflash by running \`${INSTALL_CMD}\` in \`${CHECK_DIR}\`."
+    fi
+
+    SETUP_MSG="JS/TS files were changed in a recent commit, but codeflash is not configured yet.
+
+Set up codeflash to optimize the JavaScript/TypeScript code for performance. Automatically determine the following by exploring the project's actual directory structure using Glob and Read (do NOT present options to the user — discover the correct paths yourself):
+1. The relative path with respect to package.json to the root of the JS/TS module — typically \".\" for the root directory or \"src\".
+2. The relative path with respect to package.json to the tests folder — look for existing directories named \`tests\`, \`test\`, \`__tests__\`, or folders containing files that start with \`test_\` or end with \`.test.js\`/\`.spec.ts\`. If none exist, default to \`tests\`.
+
+Once determined:${INSTALL_STEP}
+- If the tests folder does not exist, create it with mkdir -p.
+- ${TARGET_MSG}. Read the existing package.json, parse it, add/update the \"codeflash\" key with the discovered values, and write back with 2-space indentation:
+
+{
+  \"codeflash\": {
+    \"moduleRoot\": \"<module root>\",
+    \"testsRoot\": \"<tests folder>\",
+    \"formatterCmds\": [\"disabled\"],
+    \"ignorePaths\": [\"dist\", \"**/node_modules\", \"**/__tests__\"]
+  }
+}
+
+Once the configuration is written, run \`npx codeflash --subagent\` as a background Bash task (run_in_background: true)."
+
+    # Append auto-allow setup instructions if not already configured
+    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
+      SETUP_MSG="${SETUP_MSG}
+
+Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
+    fi
+
+    jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason}'
+    exit 0
+  fi
+
+  # Configured but not installed
+  if [ "$CODEFLASH_INSTALLED" != "true" ]; then
+    INSTALL_MSG="JS/TS files were changed in a recent commit, but the codeflash npm package is not installed.
+
+Install codeflash to optimize the JavaScript/TypeScript code for performance by running:
+
+  ${INSTALL_CMD}
+
+in \`${CHECK_DIR}\`, then run \`npx codeflash --subagent\` as a background Bash task (run_in_background: true)."
+
+    # Append auto-allow setup instructions if not already configured
+    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
+      INSTALL_MSG="${INSTALL_MSG}
+
+Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
+    fi
+
+    jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason}'
+    exit 0
+  fi
+
+  # Build codeflash command for JS/TS — must run from project root
+  if [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "$PWD" ]; then
+    RUN_CMD="cd $PROJECT_DIR && npx codeflash --subagent"
+  else
+    RUN_CMD="npx codeflash --subagent"
+  fi
+
+  MESSAGE="JS/TS files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the JavaScript/TypeScript code for performance."
+
+  # Append auto-allow setup instructions if not already configured
+  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
+    MESSAGE="${MESSAGE}
+
+Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
+  fi
+
+  jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason}'
+  exit 0
+fi
+
+# --- Python project path ---------------------------------------------------
 INSTALL_CMD="pip install codeflash"
 
 # Only use codeflash from the current virtual environment.
@@ -126,14 +236,11 @@ source "$(dirname "$0")/find-venv.sh"
 if [ -z "${VIRTUAL_ENV:-}" ]; then
   # No venv found — instruct Claude to create one, install codeflash, configure, and run
 
-  # Discover pyproject.toml for setup instructions
-  find_pyproject
-
-  # Build pyproject setup instructions if not configured
+  # Build config setup instructions if not configured
   PYPROJECT_SETUP=""
-  if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
-    if [ -n "$PYPROJECT_PATH" ]; then
-      TARGET_MSG="Append to \`$PYPROJECT_PATH\`"
+  if [ "$PROJECT_CONFIGURED" != "true" ]; then
+    if [ -n "$PROJECT_CONFIG_PATH" ]; then
+      TARGET_MSG="Append to \`$PROJECT_CONFIG_PATH\`"
     else
       TARGET_MSG="Create \`$REPO_ROOT/pyproject.toml\`"
     fi
@@ -190,10 +297,10 @@ if [ -x "$CODEFLASH_BIN" ] && "$CODEFLASH_BIN" --version >/dev/null 2>&1; then
 fi
 
 # Check if codeflash is configured in this project
-if [ "$PYPROJECT_CONFIGURED" != "true" ]; then
+if [ "$PROJECT_CONFIGURED" != "true" ]; then
   # Build a human-friendly target path for the setup message
-  if [ -n "$PYPROJECT_PATH" ]; then
-    TARGET_MSG="Append to \`$PYPROJECT_PATH\`"
+  if [ -n "$PROJECT_CONFIG_PATH" ]; then
+    TARGET_MSG="Append to \`$PROJECT_CONFIG_PATH\`"
   else
     TARGET_MSG="Create \`$REPO_ROOT/pyproject.toml\`"
   fi
@@ -257,8 +364,8 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
 fi
 
 # Instruct Claude to run codeflash as a background subagent
-if [ -n "$PYPROJECT_DIR" ] && [ "$PYPROJECT_DIR" != "$PWD" ]; then
-  RUN_CMD="cd $PYPROJECT_DIR && $CODEFLASH_BIN --subagent"
+if [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "$PWD" ]; then
+  RUN_CMD="cd $PROJECT_DIR && $CODEFLASH_BIN --subagent"
 else
   RUN_CMD="$CODEFLASH_BIN --subagent"
 fi

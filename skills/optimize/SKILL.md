@@ -1,6 +1,6 @@
 ---
 name: optimize
-description: Optimize Python code for performance using Codeflash
+description: Optimize Python, JavaScript, or TypeScript code for performance using Codeflash
 user-invocable: true
 argument-hint: "[--file] [--function] [--subagent]"
 context: fork
@@ -8,12 +8,12 @@ agent: codeflash:optimizer
 allowed-tools: Task
 ---
 
-Optimize Python code using Codeflash.
+Optimize code using Codeflash.
 
 Pass the following to the optimizer agent:
 
 ```
-Optimize Python code using the workflow in your system prompt.
+Optimize code using the workflow in your system prompt.
 
 Arguments: $ARGUMENTS
 

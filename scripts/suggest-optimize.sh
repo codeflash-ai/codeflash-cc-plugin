@@ -111,18 +111,219 @@ if [ -f "$SEEN_MARKER" ] && grep -qF "$COMMIT_HASH" "$SEEN_MARKER" 2>/dev/null; 
 fi
 echo "$COMMIT_HASH" >> "$SEEN_MARKER"
 
-# --- JS/TS project path ---------------------------------------------------
-if [ "$HAS_JS_CHANGES" = "true" ]; then
-  MESSAGE="JS/TS files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to to optimize the JavaScript/TypeScript code for performance. Use npx to execute codeflash"
-  jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+# --- From here on, we know there are new commits to optimize ---
+
+# Source find-venv.sh for Python venv detection
+# shellcheck disable=SC1091
+source "$(dirname "$0")/find-venv.sh"
+
+# Walk from $PWD upward to $REPO_ROOT checking ALL config types at each level.
+# Sets: PROJECT_CONFIGURED, FOUND_CONFIGS (space-separated), PROJECT_DIR
+detect_any_config() {
+  PROJECT_CONFIGURED="false"
+  FOUND_CONFIGS=""
+  PROJECT_DIR=""
+  local search_dir="$PWD"
+  while true; do
+    # Check codeflash.toml (Java projects)
+    if [ -f "$search_dir/codeflash.toml" ]; then
+      if grep -q '\[tool\.codeflash\]' "$search_dir/codeflash.toml" 2>/dev/null; then
+        PROJECT_CONFIGURED="true"
+        FOUND_CONFIGS="${FOUND_CONFIGS:+$FOUND_CONFIGS }codeflash.toml"
+        [ -z "$PROJECT_DIR" ] && PROJECT_DIR="$search_dir"
+      fi
+    fi
+    # Check pyproject.toml (Python projects)
+    if [ -f "$search_dir/pyproject.toml" ]; then
+      if grep -q '\[tool\.codeflash\]' "$search_dir/pyproject.toml" 2>/dev/null; then
+        PROJECT_CONFIGURED="true"
+        FOUND_CONFIGS="${FOUND_CONFIGS:+$FOUND_CONFIGS }pyproject.toml"
+        [ -z "$PROJECT_DIR" ] && PROJECT_DIR="$search_dir"
+      fi
+    fi
+    # Check package.json (JS/TS projects)
+    if [ -f "$search_dir/package.json" ]; then
+      if jq -e '.codeflash' "$search_dir/package.json" >/dev/null 2>&1; then
+        PROJECT_CONFIGURED="true"
+        FOUND_CONFIGS="${FOUND_CONFIGS:+$FOUND_CONFIGS }package.json"
+        [ -z "$PROJECT_DIR" ] && PROJECT_DIR="$search_dir"
+      fi
+    fi
+    # Move to parent directory
+    if [ "$search_dir" = "$REPO_ROOT" ]; then
+      break
+    fi
+    local parent
+    parent="$(dirname "$search_dir")"
+    if [ "$parent" = "$search_dir" ]; then
+      break
+    fi
+    case "$parent" in
+      "$REPO_ROOT"|"$REPO_ROOT"/*) search_dir="$parent" ;;
+      *) break ;;
+    esac
+  done
+}
+
+# Unified binary resolution: venv -> PATH -> uv run -> npx
+# Sets: CODEFLASH_BIN, CODEFLASH_INSTALLED
+find_codeflash_binary() {
+  CODEFLASH_BIN=""
+  CODEFLASH_INSTALLED="false"
+  # a. Active venv
+  if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/codeflash" ]; then
+    CODEFLASH_BIN="${VIRTUAL_ENV}/bin/codeflash"
+    CODEFLASH_INSTALLED="true"
+    return
+  fi
+  # b. PATH
+  if command -v codeflash >/dev/null 2>&1; then
+    CODEFLASH_BIN="codeflash"
+    CODEFLASH_INSTALLED="true"
+    return
+  fi
+  # c. uv run
+  if uv run codeflash --version >/dev/null 2>&1; then
+    CODEFLASH_BIN="uv run codeflash"
+    CODEFLASH_INSTALLED="true"
+    return
+  fi
+  # d. npx
+  if npx codeflash --version >/dev/null 2>&1; then
+    CODEFLASH_BIN="npx codeflash"
+    CODEFLASH_INSTALLED="true"
+    return
+  fi
+}
+
+# Parse changed files to detect which languages have changes.
+# Sets: CHANGED_LANGS (space-separated: python java javascript)
+detect_changed_languages() {
+  CHANGED_LANGS=""
+  if echo "$CHANGED_FILES" | grep -q '\.py$'; then
+    CHANGED_LANGS="python"
+  fi
+  if echo "$CHANGED_FILES" | grep -q '\.java$'; then
+    CHANGED_LANGS="${CHANGED_LANGS:+$CHANGED_LANGS }java"
+  fi
+  if echo "$CHANGED_FILES" | grep -qE '\.(js|ts|jsx|tsx)$'; then
+    CHANGED_LANGS="${CHANGED_LANGS:+$CHANGED_LANGS }javascript"
+  fi
+}
+
+# ---- Main flow ----
+
+detect_any_config
+
+if [ "$PROJECT_CONFIGURED" = "true" ]; then
+  find_codeflash_binary
+
+  if [ "$CODEFLASH_INSTALLED" != "true" ]; then
+    # Show install instructions (language-agnostic)
+    INSTALL_MSG="Code was changed in a recent commit, but codeflash is not installed.
+
+Install codeflash to optimize your code for performance:
+
+  pip install codeflash
+
+Then run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
+
+    # Append auto-allow if needed
+    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
+      INSTALL_MSG="${INSTALL_MSG}
+
+Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
+    fi
+
+    jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason}'
+    exit 0
+  fi
+
+  # Build run command
+  if [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "$PWD" ]; then
+    RUN_CMD="cd $PROJECT_DIR && $CODEFLASH_BIN --subagent"
+  else
+    RUN_CMD="$CODEFLASH_BIN --subagent"
+  fi
+
+  MESSAGE="Code was changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the code for performance."
+
+  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
+    MESSAGE="${MESSAGE}
+
+Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
+  fi
+
+  jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason}'
   exit 0
 fi
 
-# --- Python project path ---------------------------------------------------
-if [ "$HAS_PYTHON_CHANGES" != "true" ]; then
+# --- NOT CONFIGURED path: language-aware setup instructions ---
+detect_changed_languages
+
+for LANG in $CHANGED_LANGS; do
+  # Build per-language setup message
+  case "$LANG" in
+    python)
+      SETUP_MSG="Python files were changed in a recent commit, but codeflash is not configured yet.
+
+Set up codeflash to optimize the Python code for performance. Automatically determine the following by exploring the project's actual directory structure using Glob and Read (do NOT present options to the user -- discover the correct paths yourself):
+1. The relative path with respect to pyproject.toml to the root of the Python module -- the module root is where tests import from. for example, if the module root is abc/ then the tests would be importing code as \`from abc import xyz\`.
+2. The relative path with respect to pyproject.toml to the tests folder -- look for existing directories named \`tests\` or \`test\`, or folders containing files that start with \`test_\`. If none exist, default to \`tests\`.
+
+Once determined:
+- If the tests folder does not exist, create it with mkdir -p.
+- Create or update \`pyproject.toml\` adding the following section with the discovered values substituted:
+
+[tool.codeflash]
+# All paths are relative to this pyproject.toml's directory.
+module-root = \"<module root>\"
+tests-root = \"<tests folder>\"
+ignore-paths = []
+formatter-cmds = [\"disabled\"]
+
+Once the configuration is written, run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
+      ;;
+    java)
+      SETUP_MSG="Java files were changed in a recent commit, but codeflash is not configured yet.
+
+Run \`codeflash init --yes\` to automatically detect and configure the Java project, then run \`codeflash --subagent\` as a background Bash task (run_in_background: true) to optimize the code for performance."
+      ;;
+    javascript)
+      SETUP_MSG="JS/TS files were changed in a recent commit, but codeflash is not configured yet.
+
+Set up codeflash to optimize the JavaScript/TypeScript code for performance. Automatically determine the following by exploring the project's actual directory structure using Glob and Read (do NOT present options to the user -- discover the correct paths yourself):
+1. The relative path with respect to package.json to the root of the JS/TS module -- typically \".\" for the root directory or \"src\".
+2. The relative path with respect to package.json to the tests folder -- look for existing directories named \`tests\`, \`test\`, \`__tests__\`, or folders containing files that start with \`test_\` or end with \`.test.js\`/\`.spec.ts\`. If none exist, default to \`tests\`.
+
+Once determined:
+- If the tests folder does not exist, create it with mkdir -p.
+- Add/update the \"codeflash\" key in \`package.json\`:
+
+{
+  \"codeflash\": {
+    \"moduleRoot\": \"<module root>\",
+    \"testsRoot\": \"<tests folder>\",
+    \"formatterCmds\": [\"disabled\"],
+    \"ignorePaths\": [\"dist\", \"**/node_modules\", \"**/__tests__\"]
+  }
+}
+
+Once the configuration is written, run \`npx codeflash --subagent\` as a background Bash task (run_in_background: true)."
+      ;;
+    *) continue ;;
+  esac
+
+  # Append auto-allow setup instructions if not already configured
+  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
+    SETUP_MSG="${SETUP_MSG}
+
+Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
+  fi
+
+  jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason}'
   exit 0
-fi
+done
 
-MESSAGE="Python files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to to optimize the Python code for performance."
-
-jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+# No recognized languages in changed files -- exit silently
+exit 0

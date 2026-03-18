@@ -99,9 +99,15 @@ has_api_key() {
   if [ -n "${CODEFLASH_API_KEY:-}" ] && [[ "${CODEFLASH_API_KEY}" == cf-* ]]; then
     return 0
   fi
-  # Check shell RC files
-  for rc in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.profile"; do
+  # Check Unix shell RC files
+  for rc in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.profile" "$HOME/.kshrc" "$HOME/.cshrc"; do
     if [ -f "$rc" ] && grep -q '^export CODEFLASH_API_KEY="cf-' "$rc" 2>/dev/null; then
+      return 0
+    fi
+  done
+  # Check Windows-specific files (PowerShell / CMD, matching codeflash CLI)
+  for rc in "$HOME/codeflash_env.ps1" "$HOME/codeflash_env.bat"; do
+    if [ -f "$rc" ] && grep -q 'CODEFLASH_API_KEY.*cf-' "$rc" 2>/dev/null; then
       return 0
     fi
   done
@@ -111,7 +117,7 @@ has_api_key() {
 LOGIN_STEP=""
 if ! has_api_key; then
   LOGIN_STEP="
-- Run \`${OAUTH_SCRIPT}\` to log in to Codeflash (this will open a browser for authentication and save the API key)."
+- Run \`${OAUTH_SCRIPT}\` to log in to Codeflash. If it exits with code 0, the key is saved. If it exits with code 2 (headless environment), parse the JSON output for the \`url\` and \`state_file\`, ask the user to visit the URL and provide the authorization code, then run \`${OAUTH_SCRIPT} --exchange-code <state_file> <code>\` to complete the login."
 fi
 
 # Walk from $PWD upward to $REPO_ROOT looking for project config.
@@ -406,7 +412,7 @@ fi
 if ! has_api_key; then
   LOGIN_MSG="Python files were changed in a recent commit, but no Codeflash API key was found.
 
-Run \`${OAUTH_SCRIPT}\` to log in to Codeflash. This will open a browser for authentication and save the API key to your shell config.
+Run \`${OAUTH_SCRIPT}\` to log in to Codeflash. If it exits with code 0, the key is saved. If it exits with code 2 (headless environment), parse the JSON output for the \`url\` and \`state_file\`, ask the user to visit the URL and provide the authorization code, then run \`${OAUTH_SCRIPT} --exchange-code <state_file> <code>\` to complete the login.
 
 After login, run \`codeflash --subagent\` as a background Bash task (run_in_background: true) to optimize the code."
 

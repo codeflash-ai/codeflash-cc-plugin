@@ -3,8 +3,14 @@
 # Opens browser for authentication, exchanges code for API key,
 # and saves it to the user's shell RC file.
 #
-# Usage: ./oauth-login.sh
-# Outputs the API key on success, exits non-zero on failure.
+# Usage:
+#   ./oauth-login.sh                                  # Full browser flow
+#   ./oauth-login.sh --exchange-code STATE_FILE CODE   # Complete headless flow
+#
+# Exit codes:
+#   0 = success (API key saved)
+#   1 = error
+#   2 = headless mode (remote URL printed to stdout, state saved to temp file)
 
 set -euo pipefail
 
@@ -12,6 +18,134 @@ CFWEBAPP_BASE_URL="https://app.codeflash.ai"
 TOKEN_URL="${CFWEBAPP_BASE_URL}/codeflash/auth/oauth/token"
 CLIENT_ID="cf-cli-app"
 TIMEOUT=180
+
+# --- Detect if a browser can be launched (matches codeflash's should_attempt_browser_launch) ---
+can_open_browser() {
+  # CI/CD or non-interactive environments
+  if [ -n "${CI:-}" ] || [ "${DEBIAN_FRONTEND:-}" = "noninteractive" ]; then
+    return 1
+  fi
+
+  # Text-only browsers
+  local browser_env="${BROWSER:-}"
+  case "$browser_env" in
+    www-browser|lynx|links|w3m|elinks|links2) return 1 ;;
+  esac
+
+  local is_ssh="false"
+  if [ -n "${SSH_CONNECTION:-}" ]; then
+    is_ssh="true"
+  fi
+
+  # Linux: require a display server
+  if [ "$(uname -s)" = "Linux" ]; then
+    if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${MIR_SOCKET:-}" ]; then
+      return 1
+    fi
+  fi
+
+  # SSH on non-Linux (e.g. macOS remote) — no browser
+  if [ "$is_ssh" = "true" ] && [ "$(uname -s)" != "Linux" ]; then
+    return 1
+  fi
+
+  return 0
+}
+
+# --- Save API key to shell RC (matches codeflash's shell_utils.py logic) ---
+save_api_key() {
+  local api_key="$1"
+
+  if [ "${OS:-}" = "Windows_NT" ] || [[ "$(uname -s 2>/dev/null)" == MINGW* ]]; then
+    # Windows: use dedicated codeflash env files (same as codeflash CLI)
+    if [ -n "${PSMODULEPATH:-}" ]; then
+      RC_FILE="$HOME/codeflash_env.ps1"
+      EXPORT_LINE="\$env:CODEFLASH_API_KEY = \"${api_key}\""
+      REMOVE_PATTERN='^\$env:CODEFLASH_API_KEY'
+    else
+      RC_FILE="$HOME/codeflash_env.bat"
+      EXPORT_LINE="set CODEFLASH_API_KEY=\"${api_key}\""
+      REMOVE_PATTERN='^set CODEFLASH_API_KEY='
+    fi
+  else
+    # Unix: use shell RC file (same mapping as codeflash CLI)
+    SHELL_NAME=$(basename "${SHELL:-/bin/bash}")
+    case "$SHELL_NAME" in
+      zsh)      RC_FILE="$HOME/.zshrc" ;;
+      ksh)      RC_FILE="$HOME/.kshrc" ;;
+      csh|tcsh) RC_FILE="$HOME/.cshrc" ;;
+      dash)     RC_FILE="$HOME/.profile" ;;
+      *)        RC_FILE="$HOME/.bashrc" ;;
+    esac
+    EXPORT_LINE="export CODEFLASH_API_KEY=\"${api_key}\""
+    REMOVE_PATTERN='^export CODEFLASH_API_KEY='
+  fi
+
+  # Remove any existing CODEFLASH_API_KEY lines and append the new one
+  if [ -f "$RC_FILE" ]; then
+    CLEANED=$(grep -v "$REMOVE_PATTERN" "$RC_FILE" || true)
+    printf '%s\n' "$CLEANED" > "$RC_FILE"
+  fi
+  printf '%s\n' "$EXPORT_LINE" >> "$RC_FILE"
+
+  # Also export for the current session
+  export CODEFLASH_API_KEY="$api_key"
+}
+
+# --- Exchange code for token and save ---
+exchange_and_save() {
+  local auth_code="$1"
+  local code_verifier="$2"
+  local redirect_uri="$3"
+
+  TOKEN_RESPONSE=$(curl -s -X POST "$TOKEN_URL" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"grant_type\": \"authorization_code\",
+      \"code\": \"${auth_code}\",
+      \"code_verifier\": \"${code_verifier}\",
+      \"redirect_uri\": \"${redirect_uri}\",
+      \"client_id\": \"${CLIENT_ID}\"
+    }")
+
+  API_KEY=$(printf '%s' "$TOKEN_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null || true)
+
+  if [ -z "$API_KEY" ] || [[ ! "$API_KEY" == cf-* ]]; then
+    exit 1
+  fi
+
+  save_api_key "$API_KEY"
+}
+
+# ===================================================================
+# Mode: --exchange-code STATE_FILE CODE
+# Complete a headless flow using a previously saved PKCE state file.
+# ===================================================================
+if [ "${1:-}" = "--exchange-code" ]; then
+  STATE_FILE="${2:-}"
+  MANUAL_CODE="${3:-}"
+
+  if [ -z "$STATE_FILE" ] || [ -z "$MANUAL_CODE" ] || [ ! -f "$STATE_FILE" ]; then
+    exit 1
+  fi
+
+  # Read saved state
+  CODE_VERIFIER=$(python3 -c "import json; print(json.load(open('${STATE_FILE}')).get('code_verifier',''))" 2>/dev/null || true)
+  REMOTE_REDIRECT=$(python3 -c "import json; print(json.load(open('${STATE_FILE}')).get('remote_redirect_uri',''))" 2>/dev/null || true)
+
+  rm -f "$STATE_FILE"
+
+  if [ -z "$CODE_VERIFIER" ] || [ -z "$REMOTE_REDIRECT" ]; then
+    exit 1
+  fi
+
+  exchange_and_save "$MANUAL_CODE" "$CODE_VERIFIER" "$REMOTE_REDIRECT"
+  exit 0
+fi
+
+# ===================================================================
+# Mode: Full OAuth flow (default)
+# ===================================================================
 
 # --- PKCE pair ---
 CODE_VERIFIER=$(openssl rand -base64 48 | tr -d '=/+\n' | head -c 64)
@@ -23,10 +157,31 @@ STATE=$(openssl rand -hex 16)
 # --- Find a free port ---
 PORT=$(python3 -c "import socket; s=socket.socket(); s.bind(('',0)); print(s.getsockname()[1]); s.close()")
 
-REDIRECT_URI="http://localhost:${PORT}/callback"
-ENCODED_REDIRECT=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${REDIRECT_URI}'))")
+LOCAL_REDIRECT_URI="http://localhost:${PORT}/callback"
+REMOTE_REDIRECT_URI="${CFWEBAPP_BASE_URL}/codeflash/auth/callback"
+ENCODED_LOCAL_REDIRECT=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${LOCAL_REDIRECT_URI}'))")
+ENCODED_REMOTE_REDIRECT=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${REMOTE_REDIRECT_URI}'))")
 
-AUTH_URL="${CFWEBAPP_BASE_URL}/codeflash/auth?response_type=code&client_id=${CLIENT_ID}&code_challenge=${CODE_CHALLENGE}&code_challenge_method=sha256&state=${STATE}&redirect_uri=${ENCODED_REDIRECT}"
+AUTH_PARAMS="response_type=code&client_id=${CLIENT_ID}&code_challenge=${CODE_CHALLENGE}&code_challenge_method=sha256&state=${STATE}"
+LOCAL_AUTH_URL="${CFWEBAPP_BASE_URL}/codeflash/auth?${AUTH_PARAMS}&redirect_uri=${ENCODED_LOCAL_REDIRECT}"
+REMOTE_AUTH_URL="${CFWEBAPP_BASE_URL}/codeflash/auth?${AUTH_PARAMS}&redirect_uri=${ENCODED_REMOTE_REDIRECT}"
+
+# --- Headless detection ---
+if ! can_open_browser; then
+  # Save PKCE state so --exchange-code can complete the flow later
+  HEADLESS_STATE_FILE=$(mktemp /tmp/codeflash-oauth-state-XXXXXX.json)
+  python3 -c "
+import json
+json.dump({
+    'code_verifier': '${CODE_VERIFIER}',
+    'remote_redirect_uri': '${REMOTE_REDIRECT_URI}',
+    'state': '${STATE}'
+}, open('${HEADLESS_STATE_FILE}', 'w'))
+"
+  # Output JSON for Claude to parse — this is the ONLY stdout in headless mode
+  printf '{"headless":true,"url":"%s","state_file":"%s"}\n' "$REMOTE_AUTH_URL" "$HEADLESS_STATE_FILE"
+  exit 2
+fi
 
 # --- Temp file for callback result ---
 RESULT_FILE=$(mktemp /tmp/codeflash-oauth-XXXXXX.json)
@@ -205,18 +360,16 @@ httpd.serve_forever()
 PYEOF
 SERVER_PID=$!
 
-# --- Open browser ---
+# --- Open browser (macOS, Linux, WSL) ---
 if [[ "$(uname)" == "Darwin" ]]; then
-  open "$AUTH_URL" 2>/dev/null || true
+  open "$LOCAL_AUTH_URL" 2>/dev/null || true
+elif command -v wslview >/dev/null 2>&1; then
+  wslview "$LOCAL_AUTH_URL" 2>/dev/null || true
 elif command -v xdg-open >/dev/null 2>&1; then
-  xdg-open "$AUTH_URL" 2>/dev/null || true
+  xdg-open "$LOCAL_AUTH_URL" 2>/dev/null || true
+elif command -v cmd.exe >/dev/null 2>&1; then
+  cmd.exe /c start "" "$LOCAL_AUTH_URL" 2>/dev/null || true
 fi
-
-echo "Opening browser for Codeflash login..."
-echo ""
-echo "If the browser didn't open, visit this URL:"
-echo "$AUTH_URL"
-echo ""
 
 # --- Wait for callback ---
 WAITED=0
@@ -231,7 +384,6 @@ done
 if [ ! -s "$RESULT_FILE" ]; then
   kill "$SERVER_PID" 2>/dev/null || true
   wait "$SERVER_PID" 2>/dev/null || true
-  echo "Authentication timed out after ${TIMEOUT}s." >&2
   exit 1
 fi
 
@@ -241,60 +393,13 @@ AUTH_CODE=$(python3 -c "import json; print(json.load(open('${RESULT_FILE}')).get
 if [ -z "$AUTH_CODE" ]; then
   kill "$SERVER_PID" 2>/dev/null || true
   wait "$SERVER_PID" 2>/dev/null || true
-  echo "No authorization code received." >&2
   exit 1
 fi
 
 # --- Exchange code for token ---
-TOKEN_RESPONSE=$(curl -s -X POST "$TOKEN_URL" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"grant_type\": \"authorization_code\",
-    \"code\": \"${AUTH_CODE}\",
-    \"code_verifier\": \"${CODE_VERIFIER}\",
-    \"redirect_uri\": \"${REDIRECT_URI}\",
-    \"client_id\": \"${CLIENT_ID}\"
-  }")
-
-API_KEY=$(echo "$TOKEN_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null || true)
-
-if [ -z "$API_KEY" ] || [[ ! "$API_KEY" == cf-* ]]; then
-  kill "$SERVER_PID" 2>/dev/null || true
-  wait "$SERVER_PID" 2>/dev/null || true
-  echo "Failed to obtain API key from token exchange." >&2
-  echo "Response: $TOKEN_RESPONSE" >&2
-  exit 1
-fi
+exchange_and_save "$AUTH_CODE" "$CODE_VERIFIER" "$LOCAL_REDIRECT_URI"
 
 # Give the browser a moment to poll /status and see success, then shut down
 sleep 2
 kill "$SERVER_PID" 2>/dev/null || true
 wait "$SERVER_PID" 2>/dev/null || true
-
-# --- Save to shell RC ---
-SHELL_NAME=$(basename "${SHELL:-/bin/bash}")
-case "$SHELL_NAME" in
-  zsh)  RC_FILE="$HOME/.zshrc" ;;
-  ksh)  RC_FILE="$HOME/.kshrc" ;;
-  csh|tcsh) RC_FILE="$HOME/.cshrc" ;;
-  dash) RC_FILE="$HOME/.profile" ;;
-  *)    RC_FILE="$HOME/.bashrc" ;;
-esac
-
-EXPORT_LINE="export CODEFLASH_API_KEY=\"${API_KEY}\""
-
-# Remove any existing CODEFLASH_API_KEY lines and append the new one
-if [ -f "$RC_FILE" ]; then
-  CLEANED=$(grep -v '^export CODEFLASH_API_KEY=' "$RC_FILE" || true)
-  echo "$CLEANED" > "$RC_FILE"
-fi
-echo "$EXPORT_LINE" >> "$RC_FILE"
-
-# Also export for the current session
-export CODEFLASH_API_KEY="$API_KEY"
-
-echo "Login successful! API key saved to ${RC_FILE}"
-echo "Restart your shell or run: source ${RC_FILE}"
-
-# Output the key so callers can capture it
-echo "$API_KEY"

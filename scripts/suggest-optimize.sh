@@ -23,15 +23,6 @@ fi
 REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
 cd "$(pwd -P)"
 
-# --- Check if codeflash is already auto-allowed in .claude/settings.json ---
-CODEFLASH_AUTO_ALLOWED="false"
-SETTINGS_JSON="$REPO_ROOT/.claude/settings.json"
-if [ -f "$SETTINGS_JSON" ]; then
-  if jq -e '.permissions.allow // [] | any(test("codeflash"))' "$SETTINGS_JSON" >/dev/null 2>&1; then
-    CODEFLASH_AUTO_ALLOWED="true"
-  fi
-fi
-
 # --- Detect new commits with Python/Java/JS/TS files since session started ---
 
 # Extract transcript_path from hook input to determine session start time
@@ -200,13 +191,6 @@ Once determined:${INSTALL_STEP}
 
 Once the configuration is written, run \`npx codeflash --subagent\` as a background Bash task (run_in_background: true)."
 
-    # Append auto-allow setup instructions if not already configured
-    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-      SETUP_MSG="${SETUP_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-    fi
-
     jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
     exit 0
   fi
@@ -221,13 +205,6 @@ Install codeflash to optimize the JavaScript/TypeScript code for performance by 
 
 in \`${CHECK_DIR}\`, then run \`npx codeflash --subagent\` as a background Bash task (run_in_background: true)."
 
-    # Append auto-allow setup instructions if not already configured
-    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-      INSTALL_MSG="${INSTALL_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-    fi
-
     jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
     exit 0
   fi
@@ -240,13 +217,6 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
   fi
 
   MESSAGE="JS/TS files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the JavaScript/TypeScript code for performance."
-
-  # Append auto-allow setup instructions if not already configured
-  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-    MESSAGE="${MESSAGE}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-  fi
 
   jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
   exit 0
@@ -277,12 +247,6 @@ Install codeflash to optimize the Java code for performance by running:
 
 Then run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
 
-    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-      INSTALL_MSG="${INSTALL_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-    fi
-
     jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
     exit 0
   fi
@@ -292,12 +256,6 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
     SETUP_MSG="Java files were changed in a recent commit, but codeflash is not configured yet.
 
 Run \`${CODEFLASH_BIN} init --yes\` in \`${CHECK_DIR}\` to automatically detect and configure the Java project, then run \`${CODEFLASH_BIN} --subagent\` as a background Bash task (run_in_background: true) to optimize the code for performance."
-
-    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-      SETUP_MSG="${SETUP_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-    fi
 
     jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
     exit 0
@@ -311,12 +269,6 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
   fi
 
   MESSAGE="Java files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the Java code for performance."
-
-  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-    MESSAGE="${MESSAGE}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-  fi
 
   jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
   exit 0
@@ -368,13 +320,6 @@ formatter-cmds = [\"disabled\"]
 3. Run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
   fi
 
-  # Build auto-allow setup step if not already configured
-  SETUP_PERMISSIONS_STEP=""
-  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-    SETUP_PERMISSIONS_STEP="
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-  fi
-
   VENV_MSG="Python files were changed in a recent commit, but no Python virtual environment was found.
 
 Set up codeflash to optimize the Python code for performance. Perform the following steps:
@@ -382,8 +327,7 @@ Set up codeflash to optimize the Python code for performance. Perform the follow
 1. Create a virtual environment by running: \`python3 -m venv .venv\` in \`$REPO_ROOT\`, then activate it by running: \`source $REPO_ROOT/.venv/bin/activate\`.
 
 2. Install codeflash by running: \`${INSTALL_CMD}\`.
-${PYPROJECT_SETUP}
-${SETUP_PERMISSIONS_STEP}"
+${PYPROJECT_SETUP}"
 
   jq -nc --arg reason "$VENV_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
   exit 0
@@ -432,13 +376,6 @@ formatter-cmds = [\"disabled\"]
 
 Once the pyproject.toml configuration is written, run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
 
-  # Append auto-allow setup instructions if not already configured
-  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-    SETUP_MSG="${SETUP_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-  fi
-
   jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
   exit 0
 fi
@@ -453,13 +390,6 @@ Install codeflash to optimize the Python code for performance by running:
 
 in \`${CHECK_DIR}\`, then run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
 
-  # Append auto-allow setup instructions if not already configured
-  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-    INSTALL_MSG="${INSTALL_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-  fi
-
   jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
   exit 0
 fi
@@ -472,12 +402,5 @@ else
 fi
 
 MESSAGE="Python files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the Python code for performance."
-
-# Append auto-allow setup instructions if not already configured
-if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-  MESSAGE="${MESSAGE}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-fi
 
 jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'

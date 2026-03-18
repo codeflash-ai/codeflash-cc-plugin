@@ -367,7 +367,7 @@ setup() {
   create_pyproject true
   create_fake_venv "$REPO/.venv"
 
-  run run_hook false "VIRTUAL_ENV=$REPO/.venv"
+  run run_hook false "VIRTUAL_ENV=$REPO/.venv" "CODEFLASH_API_KEY=cf-test-key"
   assert_block
   assert_reason_contains "permissions.allow"
   assert_reason_contains 'Bash(*codeflash*)'

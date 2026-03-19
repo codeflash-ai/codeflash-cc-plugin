@@ -236,7 +236,7 @@ Once the configuration is written, run \`npx codeflash --subagent\` as a backgro
 Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
     fi
 
-    jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+    jq -nc --arg reason "Codeflash: setting up JS/TS optimization" --arg sys "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $sys}'
     exit 0
   fi
 
@@ -257,7 +257,7 @@ in \`${CHECK_DIR}\`, then run \`npx codeflash --subagent\` as a background Bash 
 Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
     fi
 
-    jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+    jq -nc --arg reason "Codeflash: installing for JS/TS optimization" --arg sys "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $sys}'
     exit 0
   fi
 
@@ -277,7 +277,7 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
 Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
   fi
 
-  jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+  jq -nc --arg reason "Codeflash: optimizing JS/TS code" --arg sys "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $sys}'
   exit 0
 fi
 
@@ -312,7 +312,7 @@ Then run \`codeflash --subagent\` as a background Bash task (run_in_background: 
 Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
     fi
 
-    jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+    jq -nc --arg reason "Codeflash: installing for Java optimization" --arg sys "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $sys}'
     exit 0
   fi
 
@@ -328,7 +328,7 @@ Run \`${CODEFLASH_BIN} init --yes\` in \`${CHECK_DIR}\` to automatically detect 
 Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
     fi
 
-    jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+    jq -nc --arg reason "Codeflash: setting up Java optimization" --arg sys "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $sys}'
     exit 0
   fi
 
@@ -347,7 +347,7 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
 Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
   fi
 
-  jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+  jq -nc --arg reason "Codeflash: optimizing Java code" --arg sys "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $sys}'
   exit 0
 fi
 
@@ -414,7 +414,7 @@ ${LOGIN_STEP}
 ${PYPROJECT_SETUP}
 ${SETUP_PERMISSIONS_STEP}"
 
-  jq -nc --arg reason "$VENV_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+  jq -nc --arg reason "Codeflash: setting up Python environment" --arg sys "$VENV_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $sys}'
   exit 0
 fi
 
@@ -470,7 +470,7 @@ Once the pyproject.toml configuration is written, run \`codeflash --subagent\` a
 Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
   fi
 
-  jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+  jq -nc --arg reason "Codeflash: setting up Python optimization" --arg sys "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $sys}'
   exit 0
 fi
 
@@ -491,7 +491,7 @@ in \`${CHECK_DIR}\`, then run \`codeflash --subagent\` as a background Bash task
 Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
   fi
 
-  jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+  jq -nc --arg reason "Codeflash: installing for Python optimization" --arg sys "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $sys}'
   exit 0
 fi
 
@@ -503,7 +503,7 @@ Run \`${OAUTH_SCRIPT}\` to log in to Codeflash. If it exits with code 0, the key
 
 After login, run \`codeflash --subagent\` as a background Bash task (run_in_background: true) to optimize the code."
 
-  jq -nc --arg reason "$LOGIN_MSG" '{"decision": "block", "reason": $reason}'
+  jq -nc --arg reason "Codeflash: logging in" --arg sys "$LOGIN_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $sys}'
   exit 0
 fi
 
@@ -523,4 +523,4 @@ if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
 Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
 fi
 
-jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+jq -nc --arg reason "Codeflash: optimizing Python code" --arg sys "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $sys}'

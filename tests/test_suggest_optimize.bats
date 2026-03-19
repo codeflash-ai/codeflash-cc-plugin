@@ -395,7 +395,7 @@ setup() {
   create_package_json true
   setup_mock_npx true
 
-  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  run run_hook false "PATH=$MOCK_BIN:$PATH" "CODEFLASH_API_KEY=cf-test-key"
   assert_block
   assert_reason_contains "permissions.allow"
 }
@@ -410,7 +410,7 @@ setup() {
   setup_mock_npx true
   create_auto_allow
 
-  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  run run_hook false "PATH=$MOCK_BIN:$PATH" "CODEFLASH_API_KEY=cf-test-key"
   assert_block
   assert_reason_not_contains "permissions.allow"
 }

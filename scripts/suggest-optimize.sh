@@ -3,88 +3,6 @@
 # user if they'd like to run codeflash to optimize their code.
 # Fires when Claude is about to finish its response.
 
-set -euo pipefail
-
-LOGFILE="/tmp/codeflash-hook-debug.log"
-exec 2>>"$LOGFILE"
-set -x
-
-# Read stdin (Stop hook pipes context as JSON via stdin)
-INPUT=$(cat)
-
-# If the stop hook is already active (Claude already responded to a previous block),
-# allow the stop to proceed to avoid an infinite block loop.
-STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
-if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
-  exit 0
-fi
-
-## Per-project tracker keyed on repo root (resolve symlinks so PWD and REPO_ROOT share a prefix)
-REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
-cd "$(pwd -P)"
-
-# --- Check if codeflash is already auto-allowed in .claude/settings.json ---
-CODEFLASH_AUTO_ALLOWED="false"
-SETTINGS_JSON="$REPO_ROOT/.claude/settings.json"
-if [ -f "$SETTINGS_JSON" ]; then
-  if jq -e '.permissions.allow // [] | any(test("codeflash"))' "$SETTINGS_JSON" >/dev/null 2>&1; then
-    CODEFLASH_AUTO_ALLOWED="true"
-  fi
-fi
-
-# --- Detect new commits with Python/Java/JS/TS files since session started ---
-
-# Extract transcript_path from hook input to determine session start time
-TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
-if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
-  exit 0
-fi
-
-# Get the transcript file's creation (birth) time as the session start timestamp.
-# This predates any commits Claude could have made in this session.
-get_file_birth_time() {
-  local file="$1"
-  if [[ "$(uname)" == "Darwin" ]]; then
-    stat -f %B "$file"
-  else
-    local btime
-    btime=$(stat -c %W "$file" 2>/dev/null || echo "0")
-    if [ "$btime" = "0" ] || [ -z "$btime" ]; then
-      stat -c %Y "$file"
-    else
-      echo "$btime"
-    fi
-  fi
-}
-
-SESSION_START=$(get_file_birth_time "$TRANSCRIPT_PATH")
-if [ -z "$SESSION_START" ] || [ "$SESSION_START" = "0" ]; then
-  exit 0
-fi
-
-# Find commits with Python/Java/JS/TS files made after the session started
-CHANGED_COMMITS=$(git log --after="@$SESSION_START" --name-only --diff-filter=ACMR --pretty=format: -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | sort -u | grep -v '^$' || true)
-if [ -z "$CHANGED_COMMITS" ]; then
-  exit 0
-fi
-
-# Dedup: don't trigger twice for the same set of changes across sessions.
-# Use the project directory from transcript_path for state storage.
-TRANSCRIPT_DIR=$(dirname "$TRANSCRIPT_PATH")
-SEEN_MARKER="$TRANSCRIPT_DIR/codeflash-seen"
-
-COMMIT_HASH=$(git log --after="@$SESSION_START" --pretty=format:%H -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
-if [ -f "$SEEN_MARKER" ] && grep -qF "$COMMIT_HASH" "$SEEN_MARKER" 2>/dev/null; then
-  exit 0
-fi
-echo "$COMMIT_HASH" >> "$SEEN_MARKER"
-
-# --- From here on, we know there are new commits to optimize ---
-
-# Source find-venv.sh for Python venv detection
-# shellcheck disable=SC1091
-source "$(dirname "$0")/find-venv.sh"
-
 # Walk from $PWD upward to $REPO_ROOT checking ALL config types at each level.
 # Sets: PROJECT_CONFIGURED, FOUND_CONFIGS (space-separated), PROJECT_DIR
 detect_any_config() {
@@ -180,6 +98,90 @@ detect_changed_languages() {
 }
 
 # ---- Main flow ----
+# Guard: only run when executed directly (not sourced for testing)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+
+set -euo pipefail
+
+LOGFILE="/tmp/codeflash-hook-debug.log"
+exec 2>>"$LOGFILE"
+set -x
+
+# Read stdin (Stop hook pipes context as JSON via stdin)
+INPUT=$(cat)
+
+# If the stop hook is already active (Claude already responded to a previous block),
+# allow the stop to proceed to avoid an infinite block loop.
+STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
+if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
+  exit 0
+fi
+
+## Per-project tracker keyed on repo root (resolve symlinks so PWD and REPO_ROOT share a prefix)
+REPO_ROOT=$(cd "$(git rev-parse --show-toplevel 2>/dev/null)" && pwd -P) || exit 0
+cd "$(pwd -P)"
+
+# --- Check if codeflash is already auto-allowed in .claude/settings.json ---
+CODEFLASH_AUTO_ALLOWED="false"
+SETTINGS_JSON="$REPO_ROOT/.claude/settings.json"
+if [ -f "$SETTINGS_JSON" ]; then
+  if jq -e '.permissions.allow // [] | any(test("codeflash"))' "$SETTINGS_JSON" >/dev/null 2>&1; then
+    CODEFLASH_AUTO_ALLOWED="true"
+  fi
+fi
+
+# --- Detect new commits with Python/Java/JS/TS files since session started ---
+
+# Extract transcript_path from hook input to determine session start time
+TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
+if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
+  exit 0
+fi
+
+# Get the transcript file's creation (birth) time as the session start timestamp.
+# This predates any commits Claude could have made in this session.
+get_file_birth_time() {
+  local file="$1"
+  if [[ "$(uname)" == "Darwin" ]]; then
+    stat -f %B "$file"
+  else
+    local btime
+    btime=$(stat -c %W "$file" 2>/dev/null || echo "0")
+    if [ "$btime" = "0" ] || [ -z "$btime" ]; then
+      stat -c %Y "$file"
+    else
+      echo "$btime"
+    fi
+  fi
+}
+
+SESSION_START=$(get_file_birth_time "$TRANSCRIPT_PATH")
+if [ -z "$SESSION_START" ] || [ "$SESSION_START" = "0" ]; then
+  exit 0
+fi
+
+# Find commits with Python/Java/JS/TS files made after the session started
+CHANGED_COMMITS=$(git log --after="@$SESSION_START" --name-only --diff-filter=ACMR --pretty=format: -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | sort -u | grep -v '^$' || true)
+if [ -z "$CHANGED_COMMITS" ]; then
+  exit 0
+fi
+
+# Dedup: don't trigger twice for the same set of changes across sessions.
+# Use the project directory from transcript_path for state storage.
+TRANSCRIPT_DIR=$(dirname "$TRANSCRIPT_PATH")
+SEEN_MARKER="$TRANSCRIPT_DIR/codeflash-seen"
+
+COMMIT_HASH=$(git log --after="@$SESSION_START" --pretty=format:%H -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+if [ -f "$SEEN_MARKER" ] && grep -qF "$COMMIT_HASH" "$SEEN_MARKER" 2>/dev/null; then
+  exit 0
+fi
+echo "$COMMIT_HASH" >> "$SEEN_MARKER"
+
+# --- From here on, we know there are new commits to optimize ---
+
+# Source find-venv.sh for Python venv detection
+# shellcheck disable=SC1091
+source "$(dirname "$0")/find-venv.sh"
 
 detect_any_config
 
@@ -295,3 +297,5 @@ done
 
 # No recognized languages in changed files -- exit silently
 exit 0
+
+fi  # End guard

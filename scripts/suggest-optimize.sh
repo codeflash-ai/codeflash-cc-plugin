@@ -208,10 +208,6 @@ echo "$COMMIT_HASH" >> "$SEEN_MARKER"
 
 # --- From here on, we know there are new commits to optimize ---
 
-# Source find-venv.sh for Python venv detection
-# shellcheck disable=SC1091
-source "$(dirname "$0")/find-venv.sh"
-
 # OAuth login script path
 OAUTH_SCRIPT="$(dirname "$0")/oauth-login.sh"
 
@@ -224,6 +220,11 @@ fi
 # ---- Main flow ----
 
 detect_any_config
+
+# Source find-venv.sh for Python venv detection (requires CHECK_DIR and REPO_ROOT)
+CHECK_DIR="${PROJECT_DIR:-$PWD}"
+# shellcheck disable=SC1091
+source "$(dirname "$0")/find-venv.sh"
 
 if [ "$PROJECT_CONFIGURED" = "true" ]; then
   find_codeflash_binary

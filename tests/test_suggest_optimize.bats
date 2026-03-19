@@ -463,3 +463,117 @@ setup() {
   assert_block
   assert_reason_contains "npx codeflash --subagent"
 }
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Java projects
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Setup:    codeflash.toml with [tool.codeflash]. Mock codeflash binary in PATH.
+#           One .java file committed after session start.
+# Validates: The Java "happy path" — codeflash.toml is configured, codeflash
+#           binary is available in PATH. The hook instructs Claude to run
+#           `codeflash --subagent` in the background.
+# Expected: Block with reason containing "codeflash --subagent" and
+#           "run_in_background".
+@test "java: configured + codeflash installed → run codeflash" {
+  add_java_commit
+  create_codeflash_toml true
+  setup_mock_codeflash true
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH" "CODEFLASH_API_KEY=cf-test-key"
+  assert_block
+  assert_reason_contains "codeflash --subagent"
+  assert_reason_contains "run_in_background"
+}
+
+# Setup:    codeflash.toml with [tool.codeflash]. No codeflash binary in PATH.
+#           One .java commit.
+# Validates: When codeflash is configured but the binary is not installed,
+#           the hook should prompt to install it with pip.
+# Expected: Block with reason containing "pip install codeflash".
+@test "java: configured + NOT installed → install prompt" {
+  add_java_commit
+  create_codeflash_toml true
+
+  # Use PATH without codeflash: MOCK_BIN (empty) + system dirs, but not dirs containing codeflash
+  run run_hook false "PATH=$MOCK_BIN:/usr/bin:/bin" "CODEFLASH_API_KEY=cf-test-key"
+  assert_block
+  assert_reason_contains "pip install codeflash"
+}
+
+# Setup:    codeflash.toml exists but has NO [tool.codeflash] section.
+#           Mock codeflash binary is available. One .java commit.
+# Validates: When codeflash is installed but not configured, the hook should
+#           prompt to run `codeflash init --yes` for auto-configuration.
+# Expected: Block with reason containing "codeflash init --yes".
+@test "java: NOT configured + installed → setup prompt" {
+  add_java_commit
+  create_codeflash_toml false
+  setup_mock_codeflash true
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH" "CODEFLASH_API_KEY=cf-test-key"
+  assert_block
+  assert_reason_contains "init --yes"
+}
+
+# Setup:    codeflash.toml exists but has NO [tool.codeflash] section.
+#           No codeflash binary in PATH. One .java commit.
+# Validates: When neither configured nor installed, the hook should prompt
+#           to install first then configure.
+# Expected: Block with reason containing "pip install codeflash".
+@test "java: NOT configured + NOT installed → install prompt" {
+  add_java_commit
+  create_codeflash_toml false
+
+  # Use PATH without codeflash: MOCK_BIN (empty) + system dirs, but not dirs containing codeflash
+  run run_hook false "PATH=$MOCK_BIN:/usr/bin:/bin" "CODEFLASH_API_KEY=cf-test-key"
+  assert_block
+  assert_reason_contains "pip install codeflash"
+}
+
+# Setup:    codeflash.toml with [tool.codeflash]. Mock codeflash in PATH.
+#           No .claude/settings.json exists. One .java commit.
+# Validates: Java path also appends auto-allow instructions when settings.json
+#           is missing.
+# Expected: Block with reason containing "permissions.allow".
+@test "java: includes auto-allow instructions when settings.json missing" {
+  add_java_commit
+  create_codeflash_toml true
+  setup_mock_codeflash true
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH" "CODEFLASH_API_KEY=cf-test-key"
+  assert_block
+  assert_reason_contains "permissions.allow"
+}
+
+# Setup:    codeflash.toml configured. Mock codeflash in PATH.
+#           .claude/settings.json already has Bash(*codeflash*). One .java commit.
+# Validates: Java path omits auto-allow when already configured.
+# Expected: Block with reason NOT containing "permissions.allow".
+@test "java: omits auto-allow when already configured" {
+  add_java_commit
+  create_codeflash_toml true
+  setup_mock_codeflash true
+  create_auto_allow
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH" "CODEFLASH_API_KEY=cf-test-key"
+  assert_block
+  assert_reason_not_contains "permissions.allow"
+}
+
+# Setup:    codeflash.toml with [tool.codeflash] exists alongside pyproject.toml.
+#           One .java commit. Mock codeflash in PATH.
+# Validates: codeflash.toml takes precedence over pyproject.toml in project
+#           detection, ensuring Java projects are correctly identified.
+# Expected: Block with "Java files" in reason (not "Python files").
+@test "java: codeflash.toml takes precedence over pyproject.toml" {
+  add_java_commit
+  create_codeflash_toml true
+  create_pyproject true
+  setup_mock_codeflash true
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH" "CODEFLASH_API_KEY=cf-test-key"
+  assert_block
+  assert_reason_contains "Java files"
+  assert_reason_not_contains "Python files"
+}

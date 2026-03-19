@@ -216,6 +216,28 @@ MOCK
   chmod +x "$MOCK_BIN/npx"
 }
 
+# Create a mock uv binary in MOCK_BIN that fails for codeflash.
+# This prevents find_codeflash_binary from finding codeflash via `uv run`.
+setup_mock_uv_no_codeflash() {
+  mkdir -p "$MOCK_BIN"
+  cat > "$MOCK_BIN/uv" << 'MOCK'
+#!/bin/bash
+if [[ "$1" == "run" && "$2" == "codeflash" ]]; then
+  exit 1
+fi
+exit 127
+MOCK
+  chmod +x "$MOCK_BIN/uv"
+}
+
+# Minimal PATH for "not installed" tests: mock bin + system essentials only.
+# Prevents finding codeflash via host uv/npx/PATH.
+not_installed_path() {
+  setup_mock_uv_no_codeflash
+  setup_mock_npx false
+  echo "$MOCK_BIN:/usr/bin:/bin"
+}
+
 # ---------------------------------------------------------------------------
 # Hook runner
 # ---------------------------------------------------------------------------

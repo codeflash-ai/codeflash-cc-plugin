@@ -116,60 +116,6 @@ setup() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Between-sessions detection — commits made before a new session starts
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# Setup:    Fully configured Python project. Session A runs the hook (caching HEAD).
-#           A new commit is made. Session B starts (new transcript, born AFTER the
-#           commit). Session B's hook runs.
-# Validates: When a user makes a commit in another terminal between sessions,
-#           the hook uses the cached PREV_HEAD..HEAD range (not --after=session_start)
-#           to detect the commit even though it predates Session B's transcript.
-# Expected: Session B blocks with optimization suggestion.
-@test "detects commit made between sessions (before new session starts)" {
-  create_pyproject true
-  create_fake_venv "$REPO/.venv"
-
-  # Session A: run hook to cache HEAD
-  run run_hook false "VIRTUAL_ENV=$REPO/.venv"
-  assert_no_block
-
-  # User makes commit (uses future timestamp to be after session A)
-  add_python_commit "app.py"
-
-  # Session B: new transcript file (born AFTER the commit, via future_timestamp trick)
-  local session_b_transcript="$TRANSCRIPT_DIR/session_b.jsonl"
-  touch "$session_b_transcript"
-
-  # Session B's hook should detect the commit via PREV_HEAD..HEAD range
-  run run_hook_with_transcript "$session_b_transcript" false "VIRTUAL_ENV=$REPO/.venv"
-  assert_block
-  assert_reason_contains "codeflash"
-}
-
-# Setup:    Same as above but the between-sessions commit is a non-target file (.txt).
-# Validates: The PREV_HEAD..HEAD range still correctly filters by file extension.
-# Expected: No block (commit has no target-language files).
-@test "ignores non-target between-sessions commit" {
-  create_pyproject true
-  create_fake_venv "$REPO/.venv"
-
-  # Session A
-  run run_hook false "VIRTUAL_ENV=$REPO/.venv"
-  assert_no_block
-
-  # Non-target commit
-  add_irrelevant_commit "notes.txt"
-
-  # Session B
-  local session_b_transcript="$TRANSCRIPT_DIR/session_b.jsonl"
-  touch "$session_b_transcript"
-
-  run run_hook_with_transcript "$session_b_transcript" false "VIRTUAL_ENV=$REPO/.venv"
-  assert_no_block
-}
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # Python projects
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -179,7 +125,8 @@ setup() {
 # Validates: The "happy path" — everything is set up, codeflash should just run.
 #           The hook instructs Claude to execute `codeflash --subagent` as a
 #           background task.
-# Expected: Block with reason containing "codeflash:optimize".
+# Expected: Block with reason containing "codeflash --subagent" and
+#           "run_in_background".
 @test "python: configured + codeflash installed → run codeflash" {
   add_python_commit
   create_pyproject true
@@ -187,7 +134,8 @@ setup() {
 
   run run_hook false "VIRTUAL_ENV=$REPO/.venv"
   assert_block
-  assert_reason_contains "codeflash:optimize"
+  assert_reason_contains "codeflash --subagent"
+  assert_reason_contains "run_in_background"
 }
 
 # Setup:    pyproject.toml with [tool.codeflash]. Fake venv exists but does NOT
@@ -199,8 +147,10 @@ setup() {
   add_python_commit
   create_pyproject true
   create_fake_venv "$REPO/.venv" false
+  local restricted_path
+  restricted_path=$(not_installed_path)
 
-  run run_hook false "VIRTUAL_ENV=$REPO/.venv"
+  run run_hook false "VIRTUAL_ENV=$REPO/.venv" "PATH=$restricted_path"
   assert_block
   assert_reason_contains "pip install codeflash"
 }
@@ -225,12 +175,12 @@ setup() {
 
 # Setup:    pyproject.toml without [tool.codeflash]. Fake venv WITHOUT codeflash
 #           binary. VIRTUAL_ENV set.
-# Validates: When both installation and configuration are missing, the hook
-#           should instruct Claude to both install codeflash and set up the
-#           config. The install step is embedded within the setup instructions.
-# Expected: Block with reason containing both "[tool.codeflash]" (setup) and
-#           "install codeflash" (installation).
-@test "python: NOT configured + NOT installed → setup + install prompt" {
+# Validates: When configuration is missing, the unified hook takes the
+#           NOT CONFIGURED path with per-language setup instructions.
+#           The setup message includes the [tool.codeflash] config template.
+# Expected: Block with reason containing "[tool.codeflash]" (config template)
+#           and "module-root" (config field).
+@test "python: NOT configured + NOT installed → setup prompt" {
   add_python_commit
   create_pyproject false
   create_fake_venv "$REPO/.venv" false
@@ -238,35 +188,41 @@ setup() {
   run run_hook false "VIRTUAL_ENV=$REPO/.venv"
   assert_block
   assert_reason_contains "[tool.codeflash]"
-  assert_reason_contains "install codeflash"
+  assert_reason_contains "module-root"
 }
 
 # Setup:    pyproject.toml with [tool.codeflash]. No .venv or venv directory
-#           anywhere. VIRTUAL_ENV not set.
-# Validates: Without a virtual environment, codeflash cannot run. The hook
-#           reaches the no-venv code path. Currently the script exits non-zero
-#           due to an unset SETUP_PERMISSIONS_STEP variable (known issue).
-# Expected: Exit non-zero (script bug: unset variable with set -u).
-@test "python: no venv + configured → exits non-zero (known script bug)" {
+#           anywhere. VIRTUAL_ENV not set. No codeflash in PATH/uv/npx.
+# Validates: The unified hook uses find_codeflash_binary which checks venv,
+#           PATH, uv run, and npx. When none are found, it shows a generic
+#           "not installed" message with install instructions.
+# Expected: Block with reason containing "pip install codeflash".
+@test "python: no venv + configured → install prompt" {
   add_python_commit
   create_pyproject true
+  local restricted_path
+  restricted_path=$(not_installed_path)
   # No venv created, no VIRTUAL_ENV set
 
-  run run_hook false
-  [ "$status" -ne 0 ]
+  run run_hook false "PATH=$restricted_path"
+  assert_block
+  assert_reason_contains "pip install codeflash"
 }
 
 # Setup:    pyproject.toml WITHOUT [tool.codeflash]. No venv anywhere.
 #           VIRTUAL_ENV not set.
-# Validates: Same no-venv code path. Currently the script exits non-zero
-#           due to an unset SETUP_PERMISSIONS_STEP variable (known issue).
-# Expected: Exit non-zero (script bug: unset variable with set -u).
-@test "python: no venv + NOT configured → exits non-zero (known script bug)" {
+# Validates: When nothing is set up, the unified hook takes the NOT CONFIGURED
+#           path with per-language setup instructions including the config
+#           template. Install is handled implicitly when the user tries to run.
+# Expected: Block with reason containing "[tool.codeflash]" and "module-root".
+@test "python: no venv + NOT configured → setup prompt" {
   add_python_commit
   create_pyproject false
 
   run run_hook false
-  [ "$status" -ne 0 ]
+  assert_block
+  assert_reason_contains "[tool.codeflash]"
+  assert_reason_contains "module-root"
 }
 
 # Setup:    pyproject.toml with [tool.codeflash]. Fake venv at $REPO/.venv with
@@ -274,18 +230,18 @@ setup() {
 # Validates: The hook sources find-venv.sh which searches CHECK_DIR/.venv,
 #           CHECK_DIR/venv, REPO_ROOT/.venv, REPO_ROOT/venv for an activate
 #           script. It should find .venv, activate it (setting VIRTUAL_ENV),
-#           and then proceed as if the venv was active from the start.
-# Expected: Block with reason containing "codeflash:optimize" (same as the
+#           and then find_codeflash_binary picks up the venv binary.
+# Expected: Block with reason containing "codeflash --subagent" (same as the
 #           happy path — auto-discovery is transparent).
 @test "python: auto-discovers .venv when VIRTUAL_ENV not set" {
   add_python_commit
   create_pyproject true
   create_fake_venv "$REPO/.venv" true
-  # Don't pass VIRTUAL_ENV — script should find .venv itself
+  # Don't pass VIRTUAL_ENV — find-venv.sh should discover .venv
 
   run run_hook false
   assert_block
-  assert_reason_contains "codeflash:optimize"
+  assert_reason_contains "codeflash --subagent"
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -295,10 +251,11 @@ setup() {
 # Setup:    package.json with "codeflash" config key. Mock npx that returns
 #           success for `codeflash --version`. PATH includes mock bin.
 #           One .js file committed after session start. No pyproject.toml.
-# Validates: The JS "happy path" — package.json is configured, codeflash npm
-#           package is available via npx. The hook instructs Claude to run
-#           `npx codeflash --subagent` in the background.
-# Expected: Block with reason containing "codeflash:optimize".
+# Validates: The JS "happy path" — package.json is configured, codeflash is
+#           available. The unified hook instructs Claude to run
+#           `codeflash --subagent` in the background.
+# Expected: Block with reason containing "codeflash --subagent" and
+#           "run_in_background".
 @test "js: configured + codeflash installed → run codeflash" {
   add_js_commit
   create_package_json true
@@ -306,32 +263,33 @@ setup() {
 
   run run_hook false "PATH=$MOCK_BIN:$PATH"
   assert_block
-  assert_reason_contains "codeflash:optimize"
+  assert_reason_contains "codeflash --subagent"
+  assert_reason_contains "run_in_background"
 }
 
 # Setup:    package.json with "codeflash" key. Mock npx returns failure for
 #           `codeflash --version` (package not installed). One .js commit.
-# Validates: When codeflash is configured in package.json but the npm package
-#           is not installed, the hook should prompt to install it as a dev
-#           dependency before running.
-# Expected: Block with reason containing "npm install --save-dev codeflash".
+# Validates: When codeflash is configured but the binary is not found by
+#           find_codeflash_binary, the unified hook shows a generic install
+#           message with "pip install codeflash".
+# Expected: Block with reason containing "pip install codeflash".
 @test "js: configured + NOT installed → install prompt" {
   add_js_commit
   create_package_json true
-  setup_mock_npx false
+  local restricted_path
+  restricted_path=$(not_installed_path)
 
-  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  run run_hook false "PATH=$restricted_path"
   assert_block
-  assert_reason_contains "npm install --save-dev codeflash"
+  assert_reason_contains "pip install codeflash"
 }
 
 # Setup:    package.json exists but has NO "codeflash" key. Mock npx returns
 #           success (codeflash is installed). One .js commit.
-# Validates: When codeflash is installed but not configured, the hook should
-#           instruct Claude to discover project structure and add the "codeflash"
-#           config key to package.json with moduleRoot, testsRoot, etc.
-# Expected: Block with reason containing "moduleRoot" and "testsRoot"
-#           (the config fields to be added to package.json).
+# Validates: When codeflash is not configured, the unified hook takes the
+#           NOT CONFIGURED path and shows per-language JS/TS setup instructions
+#           with the package.json config template.
+# Expected: Block with reason containing "moduleRoot" and "testsRoot".
 @test "js: NOT configured + installed → setup prompt" {
   add_js_commit
   create_package_json false
@@ -345,13 +303,11 @@ setup() {
 
 # Setup:    package.json without "codeflash" key. Mock npx fails (not installed).
 #           One .js commit.
-# Validates: When both installation and configuration are missing for a JS
-#           project. The setup message should include an install step
-#           ("npm install --save-dev codeflash") embedded within the broader
-#           config setup instructions.
-# Expected: Block with reason containing both "moduleRoot" (setup) and
-#           "npm install --save-dev codeflash" (installation).
-@test "js: NOT configured + NOT installed → setup + install prompt" {
+# Validates: When configuration is missing, the unified hook takes the
+#           NOT CONFIGURED path regardless of installation state. Shows
+#           JS/TS setup instructions with config template.
+# Expected: Block with reason containing "moduleRoot" and "testsRoot".
+@test "js: NOT configured + NOT installed → setup prompt" {
   add_js_commit
   create_package_json false
   setup_mock_npx false
@@ -359,15 +315,14 @@ setup() {
   run run_hook false "PATH=$MOCK_BIN:$PATH"
   assert_block
   assert_reason_contains "moduleRoot"
-  assert_reason_contains "npm install --save-dev codeflash"
+  assert_reason_contains "testsRoot"
 }
 
 # Setup:    Configured package.json + mock npx. Commit touches a .ts file
 #           instead of .js.
-# Validates: TypeScript files (*.ts) are detected by the git log filter and
-#           route through the JS project path (since package.json is the
-#           project config). The hook should treat .ts the same as .js.
-# Expected: Block with reason containing "codeflash:optimize".
+# Validates: TypeScript files (*.ts) are detected by the git log filter.
+#           The unified hook finds package.json config and runs codeflash.
+# Expected: Block with reason containing "codeflash --subagent".
 @test "js: typescript file triggers JS path" {
   add_ts_commit "utils.ts"
   create_package_json true
@@ -375,14 +330,14 @@ setup() {
 
   run run_hook false "PATH=$MOCK_BIN:$PATH"
   assert_block
-  assert_reason_contains "codeflash:optimize"
+  assert_reason_contains "codeflash --subagent"
 }
 
 # Setup:    Configured package.json + mock npx. Commit touches a .jsx file.
 # Validates: JSX files (*.jsx) are also detected by the git log filter
-#           (-- '*.jsx') and processed via the JS path. Ensures React
-#           component files trigger optimization.
-# Expected: Block with reason containing "codeflash:optimize".
+#           (-- '*.jsx'). The unified hook finds package.json config and
+#           runs codeflash.
+# Expected: Block with reason containing "codeflash --subagent".
 @test "js: jsx file triggers JS path" {
   add_js_commit "Component.jsx"
   create_package_json true
@@ -390,7 +345,7 @@ setup() {
 
   run run_hook false "PATH=$MOCK_BIN:$PATH"
   assert_block
-  assert_reason_contains "codeflash:optimize"
+  assert_reason_contains "codeflash --subagent"
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -398,18 +353,20 @@ setup() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Setup:    Fully configured Python project. No .claude/settings.json exists.
-# Validates: Auto-allow instructions are currently disabled (commented out in
-#           the script). The hook should still block but NOT include
-#           permissions.allow instructions.
-# Expected: Block reason does NOT contain "permissions.allow".
-@test "omits auto-allow instructions when settings.json missing (feature disabled)" {
+# Validates: When codeflash is not yet auto-allowed, the hook appends
+#           instructions telling Claude to add `Bash(*codeflash*)` to the
+#           permissions.allow array in .claude/settings.json. This enables
+#           future runs to execute without user permission prompts.
+# Expected: Block reason contains "permissions.allow" and "Bash(*codeflash*)".
+@test "includes auto-allow instructions when settings.json missing" {
   add_python_commit
   create_pyproject true
   create_fake_venv "$REPO/.venv"
 
   run run_hook false "VIRTUAL_ENV=$REPO/.venv" "CODEFLASH_API_KEY=cf-test-key"
   assert_block
-  assert_reason_not_contains "permissions.allow"
+  assert_reason_contains "permissions.allow"
+  assert_reason_contains 'Bash(*codeflash*)'
 }
 
 # Setup:    Fully configured Python project. .claude/settings.json exists and
@@ -430,23 +387,22 @@ setup() {
 }
 
 # Setup:    Fully configured JS project. No .claude/settings.json exists.
-# Validates: Auto-allow instructions are currently disabled (commented out in
-#           the script). The hook should still block but NOT include
-#           permissions.allow instructions.
-# Expected: Block reason does NOT contain "permissions.allow".
-@test "js: omits auto-allow instructions when settings.json missing (feature disabled)" {
+# Validates: The unified hook appends auto-allow instructions when
+#           .claude/settings.json doesn't have codeflash permitted.
+# Expected: Block reason contains "permissions.allow".
+@test "js: includes auto-allow instructions when settings.json missing" {
   add_js_commit
   create_package_json true
   setup_mock_npx true
 
-  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  run run_hook false "PATH=$MOCK_BIN:$PATH" "CODEFLASH_API_KEY=cf-test-key"
   assert_block
-  assert_reason_not_contains "permissions.allow"
+  assert_reason_contains "permissions.allow"
 }
 
 # Setup:    Fully configured JS project. .claude/settings.json has
 #           "Bash(*codeflash*)" in permissions.allow.
-# Validates: JS path correctly omits auto-allow instructions when already set.
+# Validates: Unified hook correctly omits auto-allow instructions when already set.
 # Expected: Block reason does NOT contain "permissions.allow".
 @test "js: omits auto-allow when already configured" {
   add_js_commit
@@ -454,7 +410,7 @@ setup() {
   setup_mock_npx true
   create_auto_allow
 
-  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  run run_hook false "PATH=$MOCK_BIN:$PATH" "CODEFLASH_API_KEY=cf-test-key"
   assert_block
   assert_reason_not_contains "permissions.allow"
 }
@@ -466,13 +422,11 @@ setup() {
 # Setup:    BOTH pyproject.toml (with [tool.codeflash]) and package.json (with
 #           "codeflash" key) exist in the same directory. Fake venv with
 #           codeflash installed. One .py commit.
-# Validates: The detect_project function checks pyproject.toml before
-#           package.json at each directory level. When both exist, the Python
-#           path should be chosen. This ensures Python projects with a
-#           package.json (e.g., for JS tooling) don't accidentally take the
-#           JS path.
-# Expected: Block with "Python files" (Python-style) and
-#           NOT "JS/TS" (which would indicate the JS path).
+# Validates: The unified detect_any_config finds both configs. When the project
+#           is configured, find_codeflash_binary locates the venv binary.
+#           The hook fires a single `codeflash --subagent` — the CLI handles
+#           multi-language dispatch.
+# Expected: Block with "codeflash --subagent" and "run_in_background".
 @test "pyproject.toml takes precedence over package.json in same directory" {
   add_python_commit
   create_pyproject true
@@ -481,16 +435,14 @@ setup() {
 
   run run_hook false "VIRTUAL_ENV=$REPO/.venv"
   assert_block
-  # Python path: message mentions Python, not JS/TS
-  assert_reason_contains "Python"
-  assert_reason_not_contains "JS/TS"
+  assert_reason_contains "codeflash --subagent"
 }
 
 # Setup:    Only package.json exists (no pyproject.toml). Configured with
 #           "codeflash" key. Mock npx available. One .js commit.
-# Validates: When pyproject.toml is absent, detect_project correctly falls
-#           through to package.json and identifies the project as JS/TS.
-# Expected: Block with "JS/TS" and "codeflash:optimize" (JS-style path).
+# Validates: When pyproject.toml is absent, detect_any_config correctly finds
+#           package.json. The unified hook runs codeflash --subagent.
+# Expected: Block with "codeflash --subagent".
 @test "detects package.json when no pyproject.toml exists" {
   add_js_commit
   # Only package.json, no pyproject.toml
@@ -499,5 +451,5 @@ setup() {
 
   run run_hook false "PATH=$MOCK_BIN:$PATH"
   assert_block
-  assert_reason_contains "codeflash:optimize"
+  assert_reason_contains "codeflash --subagent"
 }

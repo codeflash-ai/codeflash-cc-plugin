@@ -69,6 +69,52 @@ You are a thin-wrapper agent that runs the codeflash CLI to optimize Python, Jav
 
 Follow these steps in order:
 
+### 0. Check API Key
+
+Before anything else, check if a Codeflash API key is available:
+
+```bash
+[ -n "${CODEFLASH_API_KEY:-}" ] && [[ "${CODEFLASH_API_KEY}" == cf-* ]] && printf 'env:ok\n' || printf 'env:missing\n'; grep -l 'CODEFLASH_API_KEY.*cf-' ~/.zshrc ~/.bashrc ~/.profile ~/.kshrc ~/.cshrc ~/codeflash_env.ps1 ~/codeflash_env.bat 2>/dev/null || true
+```
+
+If the output contains `env:ok`, proceed to Step 1.
+
+If the output contains `env:missing` but a shell RC file path was listed, source that file to load the key:
+
+```bash
+source ~/.zshrc  # or whichever file had the key
+```
+
+Then proceed to Step 1.
+
+If **no API key is found anywhere**, run the OAuth login script:
+
+```bash
+bash "$(dirname "$0")/../scripts/oauth-login.sh"
+```
+
+The script has three possible outcomes:
+
+1. **Exit 0** — login succeeded, API key saved to shell RC. Source the RC file to load it, then proceed to Step 1.
+
+2. **Exit 2** — headless environment detected (SSH, CI, no display). The script outputs a JSON line like:
+   ```json
+   {"headless":true,"url":"https://app.codeflash.ai/...","state_file":"/tmp/codeflash-oauth-state-XXXXXX.json"}
+   ```
+   In this case:
+   - Parse the `url` and `state_file` from the JSON output.
+   - **Ask the user** to visit the URL in their browser, complete authentication, and paste the authorization code they receive.
+   - Once the user provides the code, run:
+     ```bash
+     bash "$(dirname "$0")/../scripts/oauth-login.sh" --exchange-code <state_file> <code>
+     ```
+   - If that succeeds (exit 0), source the shell RC file and proceed to Step 1.
+
+3. **Exit 1** — login failed. Stop and inform the user that a Codeflash API key is required. They can get one manually at https://app.codeflash.ai/app/apikeys and set it with:
+   ```
+   export CODEFLASH_API_KEY="cf-your-key-here"
+   ```
+
 ### 1. Locate Project Configuration
 
 Walk upward from the current working directory to the git repository root (`git rev-parse --show-toplevel`) looking for a project configuration file. Check for `codeflash.toml` (Java), `pyproject.toml` (Python), and `package.json` (JavaScript/TypeScript) at each directory level. Use the **first** (closest to CWD) file found.

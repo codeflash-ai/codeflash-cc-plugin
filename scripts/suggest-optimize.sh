@@ -98,6 +98,35 @@ echo "$COMMIT_HASH" >> "$SEEN_MARKER"
 
 # --- From here on, we know there are new commits to optimize ---
 
+# --- Check if CODEFLASH_API_KEY is available ---
+OAUTH_SCRIPT="$(dirname "$0")/oauth-login.sh"
+
+has_api_key() {
+  # Check env var
+  if [ -n "${CODEFLASH_API_KEY:-}" ] && [[ "${CODEFLASH_API_KEY}" == cf-* ]]; then
+    return 0
+  fi
+  # Check Unix shell RC files
+  for rc in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.profile" "$HOME/.kshrc" "$HOME/.cshrc"; do
+    if [ -f "$rc" ] && grep -q '^export CODEFLASH_API_KEY="cf-' "$rc" 2>/dev/null; then
+      return 0
+    fi
+  done
+  # Check Windows-specific files (PowerShell / CMD, matching codeflash CLI)
+  for rc in "$HOME/codeflash_env.ps1" "$HOME/codeflash_env.bat"; do
+    if [ -f "$rc" ] && grep -q 'CODEFLASH_API_KEY.*cf-' "$rc" 2>/dev/null; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+LOGIN_STEP=""
+if ! has_api_key; then
+  LOGIN_STEP="
+- Run \`${OAUTH_SCRIPT}\` to log in to Codeflash. If it exits with code 0, the key is saved. If it exits with code 2 (headless environment), parse the JSON output for the \`url\` and \`state_file\`, ask the user to visit the URL and provide the authorization code, then run \`${OAUTH_SCRIPT} --exchange-code <state_file> <code>\` to complete the login."
+fi
+
 # Walk from $PWD upward to $REPO_ROOT looking for project config.
 # Sets: PROJECT_TYPE, PROJECT_DIR, PROJECT_CONFIG_PATH, PROJECT_CONFIGURED
 detect_project() {
@@ -378,7 +407,7 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
   VENV_MSG="Python files were changed in a recent commit, but no Python virtual environment was found.
 
 Set up codeflash to optimize the Python code for performance. Perform the following steps:
-
+${LOGIN_STEP}
 1. Create a virtual environment by running: \`python3 -m venv .venv\` in \`$REPO_ROOT\`, then activate it by running: \`source $REPO_ROOT/.venv/bin/activate\`.
 
 2. Install codeflash by running: \`${INSTALL_CMD}\`.
@@ -415,7 +444,9 @@ if [ "$PROJECT_CONFIGURED" != "true" ]; then
 
   SETUP_MSG="Python files were changed in a recent commit, but codeflash is not configured yet.
 
-Set up codeflash to optimize the Python code for performance. Automatically determine the following by exploring the project's actual directory structure using Glob and Read (do NOT present options to the user — discover the correct paths yourself):
+Set up codeflash to optimize the Python code for performance:
+${LOGIN_STEP}
+Automatically determine the following by exploring the project's actual directory structure using Glob and Read (do NOT present options to the user — discover the correct paths yourself):
 1. The relative path with respect to pyproject.toml to the root of the Python module — the module root is where tests import from. for example, if the module root is abc/ then the tests would be importing code as \`from abc import xyz\`.
 2. The relative path with respect to pyproject.toml to the tests folder — look for existing directories named \`tests\` or \`test\`, or folders containing files that start with \`test_\`. If none exist, default to \`tests\`.
 
@@ -446,7 +477,7 @@ fi
 # Codeflash is configured but not installed in the venv
 if [ "$CODEFLASH_INSTALLED" != "true" ]; then
   INSTALL_MSG="Python files were changed in a recent commit, but codeflash is not installed in the active virtual environment (\`$VIRTUAL_ENV\`).
-
+${LOGIN_STEP}
 Install codeflash to optimize the Python code for performance by running:
 
   ${INSTALL_CMD}
@@ -461,6 +492,18 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
   fi
 
   jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+  exit 0
+fi
+
+# Check for API key before running codeflash
+if ! has_api_key; then
+  LOGIN_MSG="Python files were changed in a recent commit, but no Codeflash API key was found.
+
+Run \`${OAUTH_SCRIPT}\` to log in to Codeflash. If it exits with code 0, the key is saved. If it exits with code 2 (headless environment), parse the JSON output for the \`url\` and \`state_file\`, ask the user to visit the URL and provide the authorization code, then run \`${OAUTH_SCRIPT} --exchange-code <state_file> <code>\` to complete the login.
+
+After login, run \`codeflash --subagent\` as a background Bash task (run_in_background: true) to optimize the code."
+
+  jq -nc --arg reason "$LOGIN_MSG" '{"decision": "block", "reason": $reason}'
   exit 0
 fi
 

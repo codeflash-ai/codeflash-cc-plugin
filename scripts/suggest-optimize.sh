@@ -3,6 +3,29 @@
 # user if they'd like to run codeflash to optimize their code.
 # Fires when Claude is about to finish its response.
 
+set -euo pipefail
+
+LOGFILE="/tmp/codeflash-hook-debug.log"
+exec 2>>"$LOGFILE"
+set -x
+
+# ---- Helper functions (above BASH_SOURCE guard for testability) ----
+
+get_file_birth_time() {
+  local file="$1"
+  if [[ "$(uname)" == "Darwin" ]]; then
+    stat -f %B "$file"
+  else
+    local btime
+    btime=$(stat -c %W "$file" 2>/dev/null || echo "0")
+    if [ "$btime" = "0" ] || [ -z "$btime" ]; then
+      stat -c %Y "$file"
+    else
+      echo "$btime"
+    fi
+  fi
+}
+
 # Walk from $PWD upward to $REPO_ROOT checking ALL config types at each level.
 # Sets: PROJECT_CONFIGURED, FOUND_CONFIGS (space-separated), PROJECT_DIR
 detect_any_config() {
@@ -97,15 +120,31 @@ detect_changed_languages() {
   fi
 }
 
-# ---- Main flow ----
-# Guard: only run when executed directly (not sourced for testing)
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+# Check if CODEFLASH_API_KEY is available in env or shell RC files
+has_api_key() {
+  # Check env var
+  if [ -n "${CODEFLASH_API_KEY:-}" ] && [[ "${CODEFLASH_API_KEY}" == cf-* ]]; then
+    return 0
+  fi
+  # Check Unix shell RC files
+  for rc in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.profile" "$HOME/.kshrc" "$HOME/.cshrc"; do
+    if [ -f "$rc" ] && grep -q '^export CODEFLASH_API_KEY="cf-' "$rc" 2>/dev/null; then
+      return 0
+    fi
+  done
+  # Check Windows-specific files (PowerShell / CMD, matching codeflash CLI)
+  for rc in "$HOME/codeflash_env.ps1" "$HOME/codeflash_env.bat"; do
+    if [ -f "$rc" ] && grep -q 'CODEFLASH_API_KEY.*cf-' "$rc" 2>/dev/null; then
+      return 0
+    fi
+  done
+  return 1
+}
 
-set -euo pipefail
-
-LOGFILE="/tmp/codeflash-hook-debug.log"
-exec 2>>"$LOGFILE"
-set -x
+# ---- BASH_SOURCE guard: everything below only runs when executed, not sourced ----
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+  return 0 2>/dev/null || exit 0
+fi
 
 # Read stdin (Stop hook pipes context as JSON via stdin)
 INPUT=$(cat)
@@ -137,23 +176,15 @@ TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null 
 if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
   exit 0
 fi
+TRANSCRIPT_DIR=$(dirname "$TRANSCRIPT_PATH")
 
-# Get the transcript file's creation (birth) time as the session start timestamp.
-# This predates any commits Claude could have made in this session.
-get_file_birth_time() {
-  local file="$1"
-  if [[ "$(uname)" == "Darwin" ]]; then
-    stat -f %B "$file"
-  else
-    local btime
-    btime=$(stat -c %W "$file" 2>/dev/null || echo "0")
-    if [ "$btime" = "0" ] || [ -z "$btime" ]; then
-      stat -c %Y "$file"
-    else
-      echo "$btime"
-    fi
-  fi
-}
+# --- Cheap gate: skip if HEAD hasn't changed since last check ---
+CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null) || exit 0
+LAST_HEAD_FILE="$TRANSCRIPT_DIR/codeflash-last-head"
+if [ -f "$LAST_HEAD_FILE" ] && [ "$(cat "$LAST_HEAD_FILE")" = "$CURRENT_HEAD" ]; then
+  exit 0
+fi
+echo "$CURRENT_HEAD" > "$LAST_HEAD_FILE"
 
 SESSION_START=$(get_file_birth_time "$TRANSCRIPT_PATH")
 if [ -z "$SESSION_START" ] || [ "$SESSION_START" = "0" ]; then
@@ -167,8 +198,6 @@ if [ -z "$CHANGED_COMMITS" ]; then
 fi
 
 # Dedup: don't trigger twice for the same set of changes across sessions.
-# Use the project directory from transcript_path for state storage.
-TRANSCRIPT_DIR=$(dirname "$TRANSCRIPT_PATH")
 SEEN_MARKER="$TRANSCRIPT_DIR/codeflash-seen"
 
 COMMIT_HASH=$(git log --after="@$SESSION_START" --pretty=format:%H -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
@@ -183,6 +212,17 @@ echo "$COMMIT_HASH" >> "$SEEN_MARKER"
 # shellcheck disable=SC1091
 source "$(dirname "$0")/find-venv.sh"
 
+# OAuth login script path
+OAUTH_SCRIPT="$(dirname "$0")/oauth-login.sh"
+
+LOGIN_STEP=""
+if ! has_api_key; then
+  LOGIN_STEP="
+- Run \`${OAUTH_SCRIPT}\` to log in to Codeflash. If it exits with code 0, the key is saved. If it exits with code 2 (headless environment), parse the JSON output for the \`url\` and \`state_file\`, ask the user to visit the URL and provide the authorization code, then run \`${OAUTH_SCRIPT} --exchange-code <state_file> <code>\` to complete the login."
+fi
+
+# ---- Main flow ----
+
 detect_any_config
 
 if [ "$PROJECT_CONFIGURED" = "true" ]; then
@@ -191,7 +231,7 @@ if [ "$PROJECT_CONFIGURED" = "true" ]; then
   if [ "$CODEFLASH_INSTALLED" != "true" ]; then
     # Show install instructions (language-agnostic)
     INSTALL_MSG="Code was changed in a recent commit, but codeflash is not installed.
-
+${LOGIN_STEP}
 Install codeflash to optimize your code for performance:
 
   pip install codeflash
@@ -206,6 +246,18 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
     fi
 
     jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason}'
+    exit 0
+  fi
+
+  # Check for API key before running codeflash
+  if ! has_api_key; then
+    LOGIN_MSG="Code was changed in a recent commit, but no Codeflash API key was found.
+
+Run \`${OAUTH_SCRIPT}\` to log in to Codeflash. If it exits with code 0, the key is saved. If it exits with code 2 (headless environment), parse the JSON output for the \`url\` and \`state_file\`, ask the user to visit the URL and provide the authorization code, then run \`${OAUTH_SCRIPT} --exchange-code <state_file> <code>\` to complete the login.
+
+After login, run \`codeflash --subagent\` as a background Bash task (run_in_background: true) to optimize the code."
+
+    jq -nc --arg reason "$LOGIN_MSG" '{"decision": "block", "reason": $reason}'
     exit 0
   fi
 
@@ -238,6 +290,7 @@ for LANG in $CHANGED_LANGS; do
       SETUP_MSG="Python files were changed in a recent commit, but codeflash is not configured yet.
 
 Set up codeflash to optimize the Python code for performance. Automatically determine the following by exploring the project's actual directory structure using Glob and Read (do NOT present options to the user -- discover the correct paths yourself):
+${LOGIN_STEP}
 1. The relative path with respect to pyproject.toml to the root of the Python module -- the module root is where tests import from. for example, if the module root is abc/ then the tests would be importing code as \`from abc import xyz\`.
 2. The relative path with respect to pyproject.toml to the tests folder -- look for existing directories named \`tests\` or \`test\`, or folders containing files that start with \`test_\`. If none exist, default to \`tests\`.
 
@@ -256,13 +309,14 @@ Once the configuration is written, run \`codeflash --subagent\` as a background 
       ;;
     java)
       SETUP_MSG="Java files were changed in a recent commit, but codeflash is not configured yet.
-
+${LOGIN_STEP}
 Run \`codeflash init --yes\` to automatically detect and configure the Java project, then run \`codeflash --subagent\` as a background Bash task (run_in_background: true) to optimize the code for performance."
       ;;
     javascript)
       SETUP_MSG="JS/TS files were changed in a recent commit, but codeflash is not configured yet.
 
 Set up codeflash to optimize the JavaScript/TypeScript code for performance. Automatically determine the following by exploring the project's actual directory structure using Glob and Read (do NOT present options to the user -- discover the correct paths yourself):
+${LOGIN_STEP}
 1. The relative path with respect to package.json to the root of the JS/TS module -- typically \".\" for the root directory or \"src\".
 2. The relative path with respect to package.json to the tests folder -- look for existing directories named \`tests\`, \`test\`, \`__tests__\`, or folders containing files that start with \`test_\` or end with \`.test.js\`/\`.spec.ts\`. If none exist, default to \`tests\`.
 
@@ -291,11 +345,9 @@ Once the configuration is written, run \`npx codeflash --subagent\` as a backgro
 Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
   fi
 
-  jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason}'
+  jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
   exit 0
 done
 
 # No recognized languages in changed files -- exit silently
 exit 0
-
-fi  # End guard

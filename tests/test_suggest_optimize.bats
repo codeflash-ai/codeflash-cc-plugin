@@ -353,6 +353,104 @@ setup() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Java projects
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Setup:    codeflash.toml with [tool.codeflash] section. Mock codeflash binary
+#           available on PATH. One .java file committed after session start.
+# Validates: The Java "happy path" — everything is set up, codeflash should run.
+#           The hook instructs Claude to execute `codeflash --subagent` as a
+#           background task.
+# Expected: Block with reason containing "codeflash --subagent" and
+#           "run_in_background".
+@test "java: configured + codeflash installed → run codeflash" {
+  add_java_commit
+  create_codeflash_toml true
+  setup_mock_codeflash_bin true
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  assert_block
+  assert_reason_contains "codeflash --subagent"
+  assert_reason_contains "run_in_background"
+}
+
+# Setup:    codeflash.toml with [tool.codeflash]. No codeflash binary
+#           available on PATH (mock bin has no codeflash, system PATH excluded).
+# Validates: When codeflash is configured but not installed, the hook should
+#           prompt the user to install it before optimization can run.
+# Expected: Block with reason containing "pip install codeflash".
+@test "java: configured + codeflash NOT installed → install prompt" {
+  add_java_commit
+  create_codeflash_toml true
+  setup_mock_codeflash_bin false
+
+  # Use restricted PATH to exclude any system-installed codeflash/uv
+  run run_hook false "PATH=$MOCK_BIN:/usr/bin:/bin"
+  assert_block
+  assert_reason_contains "pip install codeflash"
+}
+
+# Setup:    codeflash.toml exists but has NO [tool.codeflash] section. Mock
+#           codeflash binary available on PATH.
+# Validates: When codeflash is installed but not configured for Java, the hook
+#           should instruct Claude to run `codeflash init --yes` to auto-detect
+#           the project structure.
+# Expected: Block with reason containing "init --yes".
+@test "java: NOT configured + codeflash installed → setup prompt" {
+  add_java_commit
+  create_codeflash_toml false
+  setup_mock_codeflash_bin true
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  assert_block
+  assert_reason_contains "init --yes"
+}
+
+# Setup:    codeflash.toml without [tool.codeflash]. No codeflash binary
+#           available on PATH (system PATH excluded).
+# Validates: When both installation and configuration are missing for a Java
+#           project, the install prompt takes priority (checked first in code).
+# Expected: Block with reason containing "pip install codeflash".
+@test "java: NOT configured + NOT installed → install prompt" {
+  add_java_commit
+  create_codeflash_toml false
+  setup_mock_codeflash_bin false
+
+  # Use restricted PATH to exclude any system-installed codeflash/uv
+  run run_hook false "PATH=$MOCK_BIN:/usr/bin:/bin"
+  assert_block
+  assert_reason_contains "pip install codeflash"
+}
+
+# Setup:    Fully configured Java project. No .claude/settings.json exists.
+# Validates: Java path also appends auto-allow instructions when missing.
+# Expected: Block reason contains "permissions.allow".
+@test "java: includes auto-allow instructions when settings.json missing" {
+  add_java_commit
+  create_codeflash_toml true
+  setup_mock_codeflash_bin true
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  assert_block
+  assert_reason_contains "permissions.allow"
+}
+
+# Setup:    Fully configured Java project. .claude/settings.json has
+#           "Bash(*codeflash*)" in permissions.allow.
+# Validates: Java path correctly omits auto-allow instructions when already set.
+# Expected: Block reason does NOT contain "permissions.allow".
+@test "java: omits auto-allow when already configured" {
+  add_java_commit
+  create_codeflash_toml true
+  setup_mock_codeflash_bin true
+  create_auto_allow
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  assert_block
+  assert_reason_not_contains "permissions.allow"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Permissions — auto-allow instructions
 # ═══════════════════════════════════════════════════════════════════════════════
 

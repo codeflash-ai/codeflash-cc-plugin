@@ -93,6 +93,17 @@ add_irrelevant_commit() {
     git -C "$REPO" commit -m "add $file" >/dev/null 2>&1
 }
 
+add_java_commit() {
+  local file="${1:-Main.java}"
+  mkdir -p "$REPO/$(dirname "$file")"
+  echo 'public class Main { public static void main(String[] args) {} }' > "$REPO/$file"
+  git -C "$REPO" add -A >/dev/null 2>&1
+  local ts
+  ts=$(future_timestamp)
+  GIT_COMMITTER_DATE="@$ts" GIT_AUTHOR_DATE="@$ts" \
+    git -C "$REPO" commit -m "add $file" >/dev/null 2>&1
+}
+
 # ---------------------------------------------------------------------------
 # Project configuration helpers
 # ---------------------------------------------------------------------------
@@ -171,6 +182,45 @@ EOF
   fi
   git -C "$REPO" add -A >/dev/null 2>&1
   git -C "$REPO" commit -m "add package.json" --allow-empty >/dev/null 2>&1
+}
+
+# Create codeflash.toml for Java projects. configured=true adds [tool.codeflash].
+create_codeflash_toml() {
+  local configured="${1:-true}"
+  if [ "$configured" = "true" ]; then
+    cat > "$REPO/codeflash.toml" << 'EOF'
+[tool.codeflash]
+module-root = "src/main/java"
+tests-root = "src/test/java"
+ignore-paths = []
+EOF
+  else
+    cat > "$REPO/codeflash.toml" << 'EOF'
+# Codeflash configuration
+EOF
+  fi
+  git -C "$REPO" add -A >/dev/null 2>&1
+  git -C "$REPO" commit -m "add codeflash.toml" --allow-empty >/dev/null 2>&1
+}
+
+# Create a mock codeflash binary in MOCK_BIN (for Java projects that use PATH).
+# Usage: setup_mock_codeflash_bin [installed=true]
+#   When installed=false, no codeflash binary is created (simulates not installed).
+setup_mock_codeflash_bin() {
+  local installed="${1:-true}"
+  mkdir -p "$MOCK_BIN"
+
+  if [ "$installed" = "true" ]; then
+    cat > "$MOCK_BIN/codeflash" << 'MOCK'
+#!/bin/bash
+echo "codeflash 0.1.0"
+exit 0
+MOCK
+    chmod +x "$MOCK_BIN/codeflash"
+  else
+    # Ensure no codeflash binary exists so `command -v` fails
+    rm -f "$MOCK_BIN/codeflash"
+  fi
 }
 
 # Create .claude/settings.json with Bash(*codeflash*) auto-allowed

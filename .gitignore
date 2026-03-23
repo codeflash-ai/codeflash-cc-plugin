@@ -3,3 +3,5 @@
 __pycache__/
 *.pyc
 .orphaned_at
+.idea/
+.claude/settings.local.json

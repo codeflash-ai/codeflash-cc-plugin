@@ -130,8 +130,8 @@ if [ "${1:-}" = "--exchange-code" ]; then
   fi
 
   # Read saved state
-  CODE_VERIFIER=$(python3 -c "import json; print(json.load(open('${STATE_FILE}')).get('code_verifier',''))" 2>/dev/null || true)
-  REMOTE_REDIRECT=$(python3 -c "import json; print(json.load(open('${STATE_FILE}')).get('remote_redirect_uri',''))" 2>/dev/null || true)
+  CODE_VERIFIER=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('code_verifier',''))" "$STATE_FILE" 2>/dev/null || true)
+  REMOTE_REDIRECT=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('remote_redirect_uri',''))" "$STATE_FILE" 2>/dev/null || true)
 
   rm -f "$STATE_FILE"
 
@@ -159,8 +159,8 @@ PORT=$(python3 -c "import socket; s=socket.socket(); s.bind(('',0)); print(s.get
 
 LOCAL_REDIRECT_URI="http://localhost:${PORT}/callback"
 REMOTE_REDIRECT_URI="${CFWEBAPP_BASE_URL}/codeflash/auth/callback"
-ENCODED_LOCAL_REDIRECT=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${LOCAL_REDIRECT_URI}'))")
-ENCODED_REMOTE_REDIRECT=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${REMOTE_REDIRECT_URI}'))")
+ENCODED_LOCAL_REDIRECT=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$LOCAL_REDIRECT_URI")
+ENCODED_REMOTE_REDIRECT=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$REMOTE_REDIRECT_URI")
 
 AUTH_PARAMS="response_type=code&client_id=${CLIENT_ID}&code_challenge=${CODE_CHALLENGE}&code_challenge_method=sha256&state=${STATE}"
 LOCAL_AUTH_URL="${CFWEBAPP_BASE_URL}/codeflash/auth?${AUTH_PARAMS}&redirect_uri=${ENCODED_LOCAL_REDIRECT}"
@@ -171,13 +171,13 @@ if ! can_open_browser; then
   # Save PKCE state so --exchange-code can complete the flow later
   HEADLESS_STATE_FILE=$(mktemp /tmp/codeflash-oauth-state-XXXXXX.json)
   python3 -c "
-import json
+import json, sys
 json.dump({
-    'code_verifier': '${CODE_VERIFIER}',
-    'remote_redirect_uri': '${REMOTE_REDIRECT_URI}',
-    'state': '${STATE}'
-}, open('${HEADLESS_STATE_FILE}', 'w'))
-"
+    'code_verifier': sys.argv[1],
+    'remote_redirect_uri': sys.argv[2],
+    'state': sys.argv[3]
+}, open(sys.argv[4], 'w'))
+" "$CODE_VERIFIER" "$REMOTE_REDIRECT_URI" "$STATE" "$HEADLESS_STATE_FILE"
   # Output JSON for Claude to parse — this is the ONLY stdout in headless mode
   printf '{"headless":true,"url":"%s","state_file":"%s"}\n' "$REMOTE_AUTH_URL" "$HEADLESS_STATE_FILE"
   exit 2
@@ -388,7 +388,7 @@ if [ ! -s "$RESULT_FILE" ]; then
 fi
 
 # --- Parse callback result ---
-AUTH_CODE=$(python3 -c "import json; print(json.load(open('${RESULT_FILE}')).get('code',''))" 2>/dev/null || true)
+AUTH_CODE=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('code',''))" "$RESULT_FILE" 2>/dev/null || true)
 
 if [ -z "$AUTH_CODE" ]; then
   kill "$SERVER_PID" 2>/dev/null || true

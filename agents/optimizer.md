@@ -227,13 +227,13 @@ When configuration is missing, automatically discover the paths:
 
 Do NOT ask the user to choose from a list of options. Use your tools to inspect the actual project structure and determine the correct paths.
 
-3. **Write the configuration**: Append the `[tool.codeflash]` section to the target `pyproject.toml`. Use exactly this format, substituting the user's answers:
+3. **Write the configuration**: Append the `[tool.codeflash]` section to the target `pyproject.toml`. Use exactly this format, substituting the discovered paths:
 
 ```toml
 [tool.codeflash]
 # All paths are relative to this pyproject.toml's directory.
-module-root = "<user's module root>"
-tests-root = "<user's tests folder>"
+module-root = "<discovered module root>"
+tests-root = "<discovered tests folder>"
 ignore-paths = []
 formatter-cmds = ["disabled"]
 ```
@@ -250,21 +250,21 @@ Use the `package.json` discovered in Step 1:
 - **If `package.json` exists but has no `"codeflash"` key** → add the config to that file.
 - **If no `package.json` was found** → create one at the git repository root with `npm init -y`, then add the config.
 
-When configuration is missing, interactively set it up:
+When configuration is missing, automatically discover the paths:
 
-1. **Ask the user two questions** (use AskUserQuestion or prompt directly):
-   - **Module root**: "What is the relative path to the root of your JavaScript/TypeScript module?" (e.g. `.` for the root directory, `src`, `src/lib`)
-   - **Tests folder**: "What is the relative path to your tests folder?" (e.g. `tests`, `test`, `__tests__`, `src/__tests__`)
+1. **Discover module root**: Use Glob and Read to find the relative path to the root of the JavaScript/TypeScript module. Typically `.` for the root directory or `src`. Look for source files, `index.js`/`index.ts`, or directories containing the main entry point referenced in `package.json`.
 
-2. **Validate directories**: Check whether the tests folder the user provided exists. If it does **not** exist, create it with `mkdir -p`.
+2. **Discover tests folder**: Use Glob to find the relative path to the tests directory. Look for existing directories named `tests`, `test`, `__tests__`, or folders containing files that start with `test_` or end with `.test.js`/`.test.ts`/`.spec.js`/`.spec.ts`. If no tests directory exists, default to `tests` and create it with `mkdir -p`.
 
-3. **Write the configuration**: Read the existing `package.json`, parse it as JSON, add a `"codeflash"` key at the root level, and write the file back. Use exactly this structure, substituting the user's answers:
+Do NOT ask the user to choose from a list of options. Use your tools to inspect the actual project structure and determine the correct paths.
+
+3. **Write the configuration**: Read the existing `package.json`, parse it as JSON, add a `"codeflash"` key at the root level, and write the file back. Use exactly this structure, substituting the discovered paths:
 
 ```json
 {
   "codeflash": {
-    "moduleRoot": "<user's module root>",
-    "testsRoot": "<user's tests folder>",
+    "moduleRoot": "<discovered module root>",
+    "testsRoot": "<discovered tests folder>",
     "formatterCmds": ["disabled"],
     "ignorePaths": ["dist", "**/node_modules", "**/__tests__"]
   }
@@ -375,6 +375,6 @@ Do not wait for the background task to finish. The user will be notified automat
 
 - **No virtual environment**: No `$VIRTUAL_ENV` set and no `.venv`/`venv` directory found — tell the user to create/activate a venv, install codeflash there, and restart Claude Code
 - **Exit 127 / command not found**: Codeflash not installed in the active venv — ask the user to install it with `pip install codeflash`
-- **Not configured**: Interactively ask the user for module root and tests folder, then write the config (Python/JS/TS), or run `codeflash init --yes` (Java)
+- **Not configured**: Automatically discover module root and tests folder using Glob and Read, then write the config (Python/JS/TS), or run `codeflash init --yes` (Java)
 - **No optimizations found**: Normal — not all code can be optimized, report this clearly
 - **"Attempting to repair broken tests..."**: Normal codeflash behavior, not an error

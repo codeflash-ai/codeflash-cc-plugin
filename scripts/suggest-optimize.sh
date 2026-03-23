@@ -5,9 +5,12 @@
 
 set -euo pipefail
 
-LOGFILE="/tmp/codeflash-hook-debug.log"
-exec 2>>"$LOGFILE"
-set -x
+# Debug logging — only enabled when CODEFLASH_HOOK_DEBUG=1
+if [ "${CODEFLASH_HOOK_DEBUG:-}" = "1" ]; then
+  LOGFILE="${CODEFLASH_HOOK_LOGFILE:-/tmp/codeflash-hook-debug.log}"
+  exec 2>>"$LOGFILE"
+  set -x
+fi
 
 # Read stdin (Stop hook pipes context as JSON via stdin)
 INPUT=$(cat)
@@ -72,18 +75,18 @@ if [ -z "$SESSION_START" ] || [ "$SESSION_START" = "0" ]; then
 fi
 
 # Find commits with Python/Java/JS/TS files made after the session started
-CHANGED_COMMITS=$(git log --after="@$SESSION_START" --name-only --diff-filter=ACMR --pretty=format: -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | sort -u | grep -v '^$' || true)
-if [ -z "$CHANGED_COMMITS" ]; then
+CHANGED_FILES=$(git log --after="@$SESSION_START" --name-only --diff-filter=ACMR --pretty=format: -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | sort -u | grep -v '^$' || true)
+if [ -z "$CHANGED_FILES" ]; then
   exit 0
 fi
 
 # Determine which language families actually had changes
 HAS_PYTHON_CHANGES="false"
 HAS_JS_CHANGES="false"
-if echo "$CHANGED_COMMITS" | grep -qE '\.py$'; then
+if echo "$CHANGED_FILES" | grep -qE '\.py$'; then
   HAS_PYTHON_CHANGES="true"
 fi
-if echo "$CHANGED_COMMITS" | grep -qE '\.(js|ts|jsx|tsx)$'; then
+if echo "$CHANGED_FILES" | grep -qE '\.(js|ts|jsx|tsx)$'; then
   HAS_JS_CHANGES="true"
 fi
 
@@ -126,6 +129,24 @@ if ! has_api_key; then
   LOGIN_STEP="
 - Run \`${OAUTH_SCRIPT}\` to log in to Codeflash. If it exits with code 0, the key is saved. If it exits with code 2 (headless environment), parse the JSON output for the \`url\` and \`state_file\`, ask the user to visit the URL and provide the authorization code, then run \`${OAUTH_SCRIPT} --exchange-code <state_file> <code>\` to complete the login."
 fi
+
+# --- Helper: append auto-allow instructions if not already configured ---
+# Usage: append_auto_allow_msg MSG_VAR_NAME
+#   Appends the auto-allow setup instructions to the variable named MSG_VAR_NAME
+#   if codeflash is not already auto-allowed in .claude/settings.json.
+append_auto_allow_msg() {
+  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
+    local current="${!1}"
+    printf -v "$1" '%s\n\nThen, add `Bash(*codeflash*)` to the `permissions.allow` array in `%s` (create the file and `.claude` directory if they don'\''t exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time.' "$current" "$SETTINGS_JSON"
+  fi
+}
+
+# --- Helper: emit a block decision as JSON and exit ---
+# Usage: emit_block "$MESSAGE"
+emit_block() {
+  jq -nc --arg reason "$1" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+  exit 0
+}
 
 # Walk from $PWD upward to $REPO_ROOT looking for project config.
 # Sets: PROJECT_TYPE, PROJECT_DIR, PROJECT_CONFIG_PATH, PROJECT_CONFIGURED
@@ -229,15 +250,8 @@ Once determined:${INSTALL_STEP}
 
 Once the configuration is written, run \`npx codeflash --subagent\` as a background Bash task (run_in_background: true)."
 
-    # Append auto-allow setup instructions if not already configured
-    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-      SETUP_MSG="${SETUP_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-    fi
-
-    jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
-    exit 0
+    append_auto_allow_msg SETUP_MSG
+    emit_block "$SETUP_MSG"
   fi
 
   # Configured but not installed
@@ -250,35 +264,21 @@ Install codeflash to optimize the JavaScript/TypeScript code for performance by 
 
 in \`${CHECK_DIR}\`, then run \`npx codeflash --subagent\` as a background Bash task (run_in_background: true)."
 
-    # Append auto-allow setup instructions if not already configured
-    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-      INSTALL_MSG="${INSTALL_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-    fi
-
-    jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
-    exit 0
+    append_auto_allow_msg INSTALL_MSG
+    emit_block "$INSTALL_MSG"
   fi
 
   # Build codeflash command for JS/TS — must run from project root
   if [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "$PWD" ]; then
-    RUN_CMD="cd $PROJECT_DIR && npx codeflash --subagent"
+    RUN_CMD="cd \"$PROJECT_DIR\" && npx codeflash --subagent"
   else
     RUN_CMD="npx codeflash --subagent"
   fi
 
   MESSAGE="JS/TS files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the JavaScript/TypeScript code for performance."
 
-  # Append auto-allow setup instructions if not already configured
-  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-    MESSAGE="${MESSAGE}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-  fi
-
-  jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
-  exit 0
+  append_auto_allow_msg MESSAGE
+  emit_block "$MESSAGE"
 fi
 
 # --- Java project path -----------------------------------------------------
@@ -306,14 +306,8 @@ Install codeflash to optimize the Java code for performance by running:
 
 Then run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
 
-    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-      INSTALL_MSG="${INSTALL_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-    fi
-
-    jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
-    exit 0
+    append_auto_allow_msg INSTALL_MSG
+    emit_block "$INSTALL_MSG"
   fi
 
   # Not configured
@@ -322,33 +316,21 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
 
 Run \`${CODEFLASH_BIN} init --yes\` in \`${CHECK_DIR}\` to automatically detect and configure the Java project, then run \`${CODEFLASH_BIN} --subagent\` as a background Bash task (run_in_background: true) to optimize the code for performance."
 
-    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-      SETUP_MSG="${SETUP_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-    fi
-
-    jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
-    exit 0
+    append_auto_allow_msg SETUP_MSG
+    emit_block "$SETUP_MSG"
   fi
 
   # Everything ready — build codeflash command for Java
   if [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "$PWD" ]; then
-    RUN_CMD="cd $PROJECT_DIR && $CODEFLASH_BIN --subagent"
+    RUN_CMD="cd \"$PROJECT_DIR\" && $CODEFLASH_BIN --subagent"
   else
     RUN_CMD="$CODEFLASH_BIN --subagent"
   fi
 
   MESSAGE="Java files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the Java code for performance."
 
-  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-    MESSAGE="${MESSAGE}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-  fi
-
-  jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
-  exit 0
+  append_auto_allow_msg MESSAGE
+  emit_block "$MESSAGE"
 fi
 
 # --- Python project path ---------------------------------------------------
@@ -414,8 +396,7 @@ ${LOGIN_STEP}
 ${PYPROJECT_SETUP}
 ${SETUP_PERMISSIONS_STEP}"
 
-  jq -nc --arg reason "$VENV_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
-  exit 0
+  emit_block "$VENV_MSG"
 fi
 
 CODEFLASH_BIN="${VIRTUAL_ENV}/bin/codeflash"
@@ -463,15 +444,8 @@ formatter-cmds = [\"disabled\"]
 
 Once the pyproject.toml configuration is written, run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
 
-  # Append auto-allow setup instructions if not already configured
-  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-    SETUP_MSG="${SETUP_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-  fi
-
-  jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
-  exit 0
+  append_auto_allow_msg SETUP_MSG
+  emit_block "$SETUP_MSG"
 fi
 
 # Codeflash is configured but not installed in the venv
@@ -484,15 +458,8 @@ Install codeflash to optimize the Python code for performance by running:
 
 in \`${CHECK_DIR}\`, then run \`codeflash --subagent\` as a background Bash task (run_in_background: true)."
 
-  # Append auto-allow setup instructions if not already configured
-  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-    INSTALL_MSG="${INSTALL_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-  fi
-
-  jq -nc --arg reason "$INSTALL_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
-  exit 0
+  append_auto_allow_msg INSTALL_MSG
+  emit_block "$INSTALL_MSG"
 fi
 
 # Check for API key before running codeflash
@@ -503,24 +470,17 @@ Run \`${OAUTH_SCRIPT}\` to log in to Codeflash. If it exits with code 0, the key
 
 After login, run \`codeflash --subagent\` as a background Bash task (run_in_background: true) to optimize the code."
 
-  jq -nc --arg reason "$LOGIN_MSG" '{"decision": "block", "reason": $reason}'
-  exit 0
+  emit_block "$LOGIN_MSG"
 fi
 
 # Instruct Claude to run codeflash as a background subagent
 if [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "$PWD" ]; then
-  RUN_CMD="cd $PROJECT_DIR && $CODEFLASH_BIN --subagent"
+  RUN_CMD="cd \"$PROJECT_DIR\" && $CODEFLASH_BIN --subagent"
 else
   RUN_CMD="$CODEFLASH_BIN --subagent"
 fi
 
 MESSAGE="Python files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the Python code for performance."
 
-# Append auto-allow setup instructions if not already configured
-if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-  MESSAGE="${MESSAGE}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-fi
-
-jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+append_auto_allow_msg MESSAGE
+emit_block "$MESSAGE"

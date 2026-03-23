@@ -5,7 +5,7 @@ user-invocable: true
 argument-hint: "[--file] [--function] [--subagent]"
 context: fork
 agent: codeflash:optimizer
-allowed-tools: Task
+allowed-tools: Task, Read, Grep, Glob, Bash(*codeflash*), Bash(git *)
 ---
 
 Optimize code using Codeflash.

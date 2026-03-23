@@ -60,7 +60,7 @@ description: |
 model: inherit
 maxTurns: 15
 color: cyan
-tools: Read, Glob, Grep, Bash, Write, Edit
+tools: Read, Glob, Grep, Bash, Write, Edit, Task
 ---
 
 You are a thin-wrapper agent that runs the codeflash CLI to optimize Python, Java, and JavaScript/TypeScript code.

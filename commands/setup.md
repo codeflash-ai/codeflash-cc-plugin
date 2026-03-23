@@ -1,7 +1,7 @@
 ---
 description: "Set up codeflash permissions so optimization runs automatically without prompting"
 argument-hint: ""
-allowed-tools: Bash, Read, Write, Edit
+allowed-tools: Bash, Read, Write, Edit, Task, Grep, Glob, Bash(*codeflash*), Bash(git *)
 ---
 
 Help the user configure their project so that `codeflash --subagent` runs automatically without permission prompts.

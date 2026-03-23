@@ -38,5 +38,5 @@ if [ -n "$git_root" ]; then
   done
   grep -q '\[tool\.codeflash\]' "$git_root/pyproject.toml" 2>/dev/null && echo "python_configured=yes" || true
   grep -q '\[tool\.codeflash\]' "$git_root/codeflash.toml" 2>/dev/null && echo "java_configured=yes" || true
-  python3 -c "import json; d=json.load(open('$git_root/package.json')); print('jsts_configured=yes' if 'codeflash' in d else '')" 2>/dev/null || true
+  python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print('jsts_configured=yes' if 'codeflash' in d else '')" "$git_root/package.json" 2>/dev/null || true
 fi

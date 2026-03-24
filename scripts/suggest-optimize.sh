@@ -96,6 +96,14 @@ if [ -f "$SEEN_MARKER" ] && grep -qF "$COMMIT_HASH" "$SEEN_MARKER" 2>/dev/null; 
 fi
 echo "$COMMIT_HASH" >> "$SEEN_MARKER"
 
+# Get the parent of the earliest session commit as the base for --since-commit.
+# This lets codeflash diff across ALL session commits, not just the last one.
+EARLIEST_COMMIT=$(git log --after="@$SESSION_START" --pretty=format:%H -- '*.py' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | tail -1)
+SINCE_COMMIT=""
+if [ -n "$EARLIEST_COMMIT" ]; then
+  SINCE_COMMIT=$(git rev-parse "${EARLIEST_COMMIT}^" 2>/dev/null || true)
+fi
+
 # --- From here on, we know there are new commits to optimize ---
 
 # --- Check if CODEFLASH_API_KEY is available ---
@@ -262,20 +270,31 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
   fi
 
   # Build codeflash command for JS/TS — must run from project root
-  if [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "$PWD" ]; then
-    RUN_CMD="cd $PROJECT_DIR && npx codeflash --subagent"
-  else
-    RUN_CMD="npx codeflash --subagent"
+  SINCE_FLAG=""
+  if [ -n "$SINCE_COMMIT" ]; then
+    SINCE_FLAG=" --since-commit $SINCE_COMMIT"
   fi
 
-  MESSAGE="JS/TS files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the JavaScript/TypeScript code for performance."
+  # Happy path: codeflash is installed, configured, AND auto-allowed.
+  # Run it directly from the hook in the background — no blocking, no permission prompt.
+  if [ "$CODEFLASH_AUTO_ALLOWED" = "true" ]; then
+    OUTPUT_FILE="/tmp/codeflash_js_$(date +%s).log"
+    RUN_DIR="${PROJECT_DIR:-$PWD}"
+    (cd "$RUN_DIR" && npx codeflash --subagent${SINCE_FLAG} > "$OUTPUT_FILE" 2>&1) &
+    # Allow the response through without interrupting Claude
+    exit 0
+  fi
 
-  # Append auto-allow setup instructions if not already configured
-  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-    MESSAGE="${MESSAGE}
+  # Auto-allow not set yet — block and ask Claude to run + set up permissions
+  if [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "$PWD" ]; then
+    RUN_CMD="cd $PROJECT_DIR && npx codeflash --subagent${SINCE_FLAG}"
+  else
+    RUN_CMD="npx codeflash --subagent${SINCE_FLAG}"
+  fi
+
+  MESSAGE="JS/TS files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the JavaScript/TypeScript code for performance.
 
 Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-  fi
 
   jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
   exit 0
@@ -507,20 +526,31 @@ After login, run \`codeflash --subagent\` as a background Bash task (run_in_back
   exit 0
 fi
 
-# Instruct Claude to run codeflash as a background subagent
-if [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "$PWD" ]; then
-  RUN_CMD="cd $PROJECT_DIR && $CODEFLASH_BIN --subagent"
-else
-  RUN_CMD="$CODEFLASH_BIN --subagent"
+# Build codeflash command for Python
+SINCE_FLAG=""
+if [ -n "$SINCE_COMMIT" ]; then
+  SINCE_FLAG=" --since-commit $SINCE_COMMIT"
 fi
 
-MESSAGE="Python files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the Python code for performance."
+# Happy path: codeflash is installed, configured, AND auto-allowed.
+# Run it directly from the hook in the background — no blocking, no permission prompt.
+if [ "$CODEFLASH_AUTO_ALLOWED" = "true" ]; then
+  OUTPUT_FILE="/tmp/codeflash_py_$(date +%s).log"
+  RUN_DIR="${PROJECT_DIR:-$PWD}"
+  (source "$VIRTUAL_ENV/bin/activate" && cd "$RUN_DIR" && "$CODEFLASH_BIN" --subagent${SINCE_FLAG} > "$OUTPUT_FILE" 2>&1) &
+  # Allow the response through without interrupting Claude
+  exit 0
+fi
 
-# Append auto-allow setup instructions if not already configured
-if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-  MESSAGE="${MESSAGE}
+# Auto-allow not set yet — block and ask Claude to run + set up permissions
+if [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "$PWD" ]; then
+  RUN_CMD="cd $PROJECT_DIR && $CODEFLASH_BIN --subagent${SINCE_FLAG}"
+else
+  RUN_CMD="$CODEFLASH_BIN --subagent${SINCE_FLAG}"
+fi
+
+MESSAGE="Python files were changed in a recent commit. Run \`${RUN_CMD}\` as a background Bash task (run_in_background: true) to optimize the Python code for performance.
 
 Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-fi
 
 jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'

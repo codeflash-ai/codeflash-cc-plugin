@@ -162,7 +162,7 @@ REMOTE_REDIRECT_URI="${CFWEBAPP_BASE_URL}/codeflash/auth/callback"
 ENCODED_LOCAL_REDIRECT=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${LOCAL_REDIRECT_URI}'))")
 ENCODED_REMOTE_REDIRECT=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${REMOTE_REDIRECT_URI}'))")
 
-AUTH_PARAMS="response_type=code&client_id=${CLIENT_ID}&code_challenge=${CODE_CHALLENGE}&code_challenge_method=sha256&state=${STATE}"
+AUTH_PARAMS="response_type=code&client_id=${CLIENT_ID}&code_challenge=${CODE_CHALLENGE}&code_challenge_method=S256&state=${STATE}"
 LOCAL_AUTH_URL="${CFWEBAPP_BASE_URL}/codeflash/auth?${AUTH_PARAMS}&redirect_uri=${ENCODED_LOCAL_REDIRECT}"
 REMOTE_AUTH_URL="${CFWEBAPP_BASE_URL}/codeflash/auth?${AUTH_PARAMS}&redirect_uri=${ENCODED_REMOTE_REDIRECT}"
 

@@ -268,7 +268,7 @@ in \`${CHECK_DIR}\`, then run \`npx codeflash --subagent\` as a non-blocking bac
     RUN_CMD="npx codeflash --subagent"
   fi
 
-  MESSAGE="JS/TS files were changed in a recent commit. Run \`${RUN_CMD}\` as a non-blocking background Bash task (run_in_background: true) with a 10min timeout to optimize the JavaScript/TypeScript code for performance."
+  MESSAGE="JS/TS files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to to optimize the JavaScript/TypeScript code for performance."
 
 #  # Append auto-allow setup instructions if not already configured
 #  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
@@ -339,7 +339,7 @@ Run \`${CODEFLASH_BIN} init --yes\` in \`${CHECK_DIR}\` to automatically detect 
     RUN_CMD="$CODEFLASH_BIN --subagent"
   fi
 
-  MESSAGE="Java files were changed in a recent commit. Run \`${RUN_CMD}\` as a non-blocking background Bash task (run_in_background: true) with a 10min timeout to optimize the Java code for performance."
+  MESSAGE="Java files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to to optimize the Java code for performance."
 
 #  if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
 #    MESSAGE="${MESSAGE}
@@ -514,7 +514,7 @@ else
   RUN_CMD="$CODEFLASH_BIN --subagent"
 fi
 
-MESSAGE="Python files were changed in a recent commit. Run \`${RUN_CMD}\` as a non-blocking background Bash task (run_in_background: true) with a 10min timeout to optimize the Python code for performance."
+MESSAGE="Python files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to to optimize the Python code for performance."
 
 ## Append auto-allow setup instructions if not already configured
 #if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then

@@ -2,23 +2,23 @@
 name: optimize
 description: Optimize Python, Java, JavaScript, or TypeScript code for performance using Codeflash
 user-invocable: true
-argument-hint: "[--file] [--function] [--subagent]"
-context: fork
-agent: codeflash:optimizer
-allowed-tools: Task, Read, Grep, Glob, Bash
+argument-hint: "[--file path] [--function name]"
+allowed-tools: Bash
 ---
 
-Optimize code using Codeflash. **Run it with a 10-min timeout and in the background and non-blocking.**
+Run the `codeflash` CLI to optimize code for performance.
 
-Pass the following to the optimizer agent:
+## Build the command
 
-```
-Optimize code using the workflow in your system prompt.
+Start with: `codeflash --subagent`
 
-Arguments: $ARGUMENTS
+Then add flags based on `$ARGUMENTS`:
+- If a `--file` path was provided: add `--file <path>`
+- If a `--function` name was also provided: add `--function <name>`
+- If no arguments were provided, run `codeflash --subagent` as-is (it detects changed files automatically)
 
-If no arguments were provided, run codeflash without --file — it detects changed files itself.
-If a file path was provided without a function name, optimize all functions in that file.
-If both file and function were provided, optimize that specific function.
-Add the --subagent flag to the codeflash command.
-```
+## Execute
+
+Run the command as a **non-blocking background** Bash call (`run_in_background: true`) with a **10-minute timeout** (`timeout: 600000`).
+
+If the command fails (not installed, not authenticated, or missing config), invoke the `codeflash:setup` skill to resolve the issue, then retry.

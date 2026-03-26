@@ -83,6 +83,17 @@ add_ts_commit() {
     git -C "$REPO" commit -m "add $file" >/dev/null 2>&1
 }
 
+add_java_commit() {
+  local file="${1:-App.java}"
+  mkdir -p "$REPO/$(dirname "$file")"
+  echo "public class App { public static void main(String[] args) {} }" > "$REPO/$file"
+  git -C "$REPO" add -A >/dev/null 2>&1
+  local ts
+  ts=$(future_timestamp)
+  GIT_COMMITTER_DATE="@$ts" GIT_AUTHOR_DATE="@$ts" \
+    git -C "$REPO" commit -m "add $file" >/dev/null 2>&1
+}
+
 add_irrelevant_commit() {
   local file="${1:-data.txt}"
   echo "some data" > "$REPO/$file"
@@ -171,6 +182,69 @@ EOF
   fi
   git -C "$REPO" add -A >/dev/null 2>&1
   git -C "$REPO" commit -m "add package.json" --allow-empty >/dev/null 2>&1
+}
+
+# Create pom.xml (Maven project marker).
+create_pom_xml() {
+  cat > "$REPO/pom.xml" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>test-project</artifactId>
+  <version>1.0</version>
+</project>
+EOF
+  git -C "$REPO" add -A >/dev/null 2>&1
+  git -C "$REPO" commit -m "add pom.xml" --allow-empty >/dev/null 2>&1
+}
+
+# Create build.gradle (Gradle project marker).
+create_build_gradle() {
+  cat > "$REPO/build.gradle" << 'EOF'
+plugins { id 'java' }
+EOF
+  git -C "$REPO" add -A >/dev/null 2>&1
+  git -C "$REPO" commit -m "add build.gradle" --allow-empty >/dev/null 2>&1
+}
+
+# Create codeflash.toml. configured=true adds [tool.codeflash].
+create_codeflash_toml() {
+  local configured="${1:-true}"
+  if [ "$configured" = "true" ]; then
+    cat > "$REPO/codeflash.toml" << 'EOF'
+[tool.codeflash]
+module-root = "src/main/java"
+tests-root = "src/test/java"
+ignore-paths = []
+formatter-cmds = ["disabled"]
+EOF
+  else
+    cat > "$REPO/codeflash.toml" << 'EOF'
+# empty codeflash config
+EOF
+  fi
+  git -C "$REPO" add -A >/dev/null 2>&1
+  git -C "$REPO" commit -m "add codeflash.toml" --allow-empty >/dev/null 2>&1
+}
+
+# Create a mock codeflash binary on PATH (for Java projects that don't use venvs).
+# Usage: setup_mock_codeflash [installed=true]
+setup_mock_codeflash() {
+  local installed="${1:-true}"
+  mkdir -p "$MOCK_BIN"
+
+  if [ "$installed" = "true" ]; then
+    cat > "$MOCK_BIN/codeflash" << 'MOCK'
+#!/bin/bash
+echo "codeflash 0.1.0"
+exit 0
+MOCK
+  else
+    rm -f "$MOCK_BIN/codeflash"
+    return
+  fi
+  chmod +x "$MOCK_BIN/codeflash"
 }
 
 # Create .claude/settings.json with Bash(*codeflash*) auto-allowed

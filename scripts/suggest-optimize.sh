@@ -79,9 +79,13 @@ fi
 
 # Determine which language families actually had changes
 HAS_PYTHON_CHANGES="false"
+HAS_JAVA_CHANGES="false"
 HAS_JS_CHANGES="false"
 if echo "$CHANGED_COMMITS" | grep -qE '\.py$'; then
   HAS_PYTHON_CHANGES="true"
+fi
+if echo "$CHANGED_COMMITS" | grep -qE '\.java$'; then
+  HAS_JAVA_CHANGES="true"
 fi
 if echo "$CHANGED_COMMITS" | grep -qE '\.(js|ts|jsx|tsx)$'; then
   HAS_JS_CHANGES="true"
@@ -136,7 +140,7 @@ detect_project() {
   PROJECT_CONFIGURED="false"
   local search_dir="$PWD"
   while true; do
-    # Check codeflash.toml first (Java projects)
+    # Check codeflash.toml first (configured Java projects)
     if [ -f "$search_dir/codeflash.toml" ]; then
       PROJECT_TYPE="java"
       PROJECT_DIR="$search_dir"
@@ -144,6 +148,14 @@ detect_project() {
       if grep -q '\[tool\.codeflash\]' "$search_dir/codeflash.toml" 2>/dev/null; then
         PROJECT_CONFIGURED="true"
       fi
+      break
+    fi
+    # Detect unconfigured Java projects by build file (pom.xml / build.gradle)
+    if [ -f "$search_dir/pom.xml" ] || [ -f "$search_dir/build.gradle" ] || [ -f "$search_dir/build.gradle.kts" ]; then
+      PROJECT_TYPE="java"
+      PROJECT_DIR="$search_dir"
+      PROJECT_CONFIG_PATH=""
+      # No codeflash.toml yet — PROJECT_CONFIGURED stays false
       break
     fi
     if [ -f "$search_dir/pyproject.toml" ]; then
@@ -282,7 +294,7 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
 fi
 
 # --- Java project path -----------------------------------------------------
-if [ "$PROJECT_TYPE" = "java" ]; then
+if [ "$PROJECT_TYPE" = "java" ] && [ "$HAS_JAVA_CHANGES" = "true" ]; then
   INSTALL_CMD="pip install codeflash"
 
   # Find codeflash binary: check PATH first, then uv run (Java projects don't use venvs)
@@ -316,23 +328,8 @@ Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTING
     exit 0
   fi
 
-  # Not configured
-  if [ "$PROJECT_CONFIGURED" != "true" ]; then
-    SETUP_MSG="Java files were changed in a recent commit, but codeflash is not configured yet.
-
-Run \`${CODEFLASH_BIN} init --yes\` in \`${CHECK_DIR}\` to automatically detect and configure the Java project, then run \`${CODEFLASH_BIN} --subagent\` as a background Bash task (run_in_background: true) to optimize the code for performance."
-
-    if [ "$CODEFLASH_AUTO_ALLOWED" != "true" ]; then
-      SETUP_MSG="${SETUP_MSG}
-
-Then, add \`Bash(*codeflash*)\` to the \`permissions.allow\` array in \`$SETTINGS_JSON\` (create the file and \`.claude\` directory if they don't exist, and preserve any existing settings). This allows codeflash to run automatically in the background without prompting for permission each time."
-    fi
-
-    jq -nc --arg reason "$SETUP_MSG" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
-    exit 0
-  fi
-
-  # Everything ready — build codeflash command for Java
+  # Java CLI auto-detects config from pom.xml/build.gradle — no pre-configuration needed.
+  # Just run codeflash --subagent and it handles everything.
   if [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "$PWD" ]; then
     RUN_CMD="cd $PROJECT_DIR && $CODEFLASH_BIN --subagent"
   else

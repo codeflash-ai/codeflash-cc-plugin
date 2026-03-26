@@ -353,6 +353,115 @@ setup() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Java projects
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Setup:    pom.xml exists (Maven project). Mock codeflash binary on PATH.
+#           One .java file committed after session start. No codeflash.toml.
+# Validates: Fresh Java project detected via pom.xml (not codeflash.toml).
+#           The CLI auto-configures on first run, so the hook should just
+#           tell Claude to run codeflash --subagent directly.
+# Expected: Block with reason containing "codeflash --subagent" and
+#           "run_in_background".
+@test "java: pom.xml + codeflash installed → run codeflash" {
+  add_java_commit
+  create_pom_xml
+  setup_mock_codeflash true
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  assert_block
+  assert_reason_contains "codeflash --subagent"
+  assert_reason_contains "run_in_background"
+}
+
+# Setup:    pom.xml exists. No codeflash binary on PATH, uv mocked to fail.
+#           One .java commit.
+# Validates: When codeflash is not installed, the hook should prompt
+#           the user to install it before optimization can run.
+# Expected: Block with reason containing "pip install codeflash".
+@test "java: pom.xml + NOT installed → install prompt" {
+  add_java_commit
+  create_pom_xml
+  # Use a minimal PATH that excludes codeflash and real uv.
+  # Mock uv to fail so it doesn't find a global codeflash.
+  cat > "$MOCK_BIN/uv" << 'MOCK'
+#!/bin/bash
+exit 1
+MOCK
+  chmod +x "$MOCK_BIN/uv"
+
+  run run_hook false "PATH=$MOCK_BIN:/usr/bin:/bin"
+  assert_block
+  assert_reason_contains "pip install codeflash"
+}
+
+# Setup:    codeflash.toml with [tool.codeflash] section (already configured).
+#           Mock codeflash binary on PATH. One .java commit.
+# Validates: Projects that already have codeflash.toml (from a previous
+#           codeflash run or manual init) are detected and handled correctly.
+# Expected: Block with reason containing "codeflash --subagent".
+@test "java: codeflash.toml configured + installed → run codeflash" {
+  add_java_commit
+  create_codeflash_toml true
+  setup_mock_codeflash true
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  assert_block
+  assert_reason_contains "codeflash --subagent"
+}
+
+# Setup:    build.gradle exists (Gradle project). Mock codeflash on PATH.
+#           One .java commit.
+# Validates: Gradle projects are detected via build.gradle, same as Maven
+#           projects are detected via pom.xml.
+# Expected: Block with reason containing "codeflash --subagent".
+@test "java: build.gradle + installed → run codeflash" {
+  add_java_commit
+  create_build_gradle
+  setup_mock_codeflash true
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  assert_block
+  assert_reason_contains "codeflash --subagent"
+}
+
+# Setup:    pom.xml exists. Mock codeflash on PATH. Commit only touches .py
+#           file (no .java files).
+# Validates: The HAS_JAVA_CHANGES guard prevents the Java path from firing
+#           when no .java files were actually committed. Even though
+#           detect_project() finds pom.xml and sets PROJECT_TYPE=java,
+#           the guard skips the Java path. The Python fallback path may still
+#           fire (it checks HAS_PYTHON_CHANGES, not PROJECT_TYPE).
+# Expected: Block does NOT contain "Java" — the Java path was correctly skipped.
+@test "java: pom.xml but only .py committed → no Java trigger" {
+  add_python_commit
+  create_pom_xml
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  assert_block
+  assert_reason_not_contains "Java"
+}
+
+# Setup:    Both pom.xml and pyproject.toml exist. Mock codeflash on PATH.
+#           Commit touches .java file only.
+# Validates: When both Java and Python markers exist, pom.xml is checked
+#           before pyproject.toml in detect_project(). With only .java
+#           changes, the Java path fires (not Python).
+# Expected: Block with "codeflash --subagent" and NOT "npx" or "venv".
+@test "java: pom.xml takes precedence over pyproject.toml" {
+  add_java_commit
+  create_pom_xml
+  create_pyproject true
+  setup_mock_codeflash true
+
+  run run_hook false "PATH=$MOCK_BIN:$PATH"
+  assert_block
+  assert_reason_contains "codeflash --subagent"
+  assert_reason_not_contains "npx"
+  assert_reason_not_contains "virtual environment"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Permissions — auto-allow instructions
 # ═══════════════════════════════════════════════════════════════════════════════
 

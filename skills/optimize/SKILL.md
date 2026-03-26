@@ -5,10 +5,10 @@ user-invocable: true
 argument-hint: "[--file] [--function] [--subagent]"
 context: fork
 agent: codeflash:optimizer
-allowed-tools: Task, Read, Grep, Glob, Bash(*codeflash*), Bash(git *)
+allowed-tools: Task, Read, Grep, Glob, Bash
 ---
 
-Optimize code using Codeflash.
+Optimize code using Codeflash. **Run it with a 10-min timeout and in the background and non-blocking.**
 
 Pass the following to the optimizer agent:
 

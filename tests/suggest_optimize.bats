@@ -67,6 +67,25 @@ load test_helper
   [ "$PROJECT_CONFIGURED" = "false" ]
 }
 
+@test "detect_any_config finds pom.xml (Java zero-config)" {
+  mkdir -p "$TEST_DIR"
+  printf '<project><modelVersion>4.0.0</modelVersion></project>\n' > "$TEST_DIR/pom.xml"
+  load_hook_functions
+  detect_any_config
+  [ "$PROJECT_CONFIGURED" = "true" ]
+  [[ "$FOUND_CONFIGS" == *"java-build-file"* ]]
+  [ "$PROJECT_DIR" = "$TEST_DIR" ]
+}
+
+@test "detect_any_config finds build.gradle (Java zero-config)" {
+  mkdir -p "$TEST_DIR"
+  printf 'plugins { id "java" }\n' > "$TEST_DIR/build.gradle"
+  load_hook_functions
+  detect_any_config
+  [ "$PROJECT_CONFIGURED" = "true" ]
+  [[ "$FOUND_CONFIGS" == *"java-build-file"* ]]
+}
+
 @test "detect_any_config finds all three config types" {
   mkdir -p "$TEST_DIR"
   printf '[tool.codeflash]\nmodule-root = "src"\n' > "$TEST_DIR/pyproject.toml"

@@ -58,6 +58,12 @@ detect_any_config() {
         [ -z "$PROJECT_DIR" ] && PROJECT_DIR="$search_dir"
       fi
     fi
+    # Check Java build files (zero-config: pom.xml/build.gradle are sufficient)
+    if [ -f "$search_dir/pom.xml" ] || [ -f "$search_dir/build.gradle" ] || [ -f "$search_dir/build.gradle.kts" ]; then
+      PROJECT_CONFIGURED="true"
+      FOUND_CONFIGS="${FOUND_CONFIGS:+$FOUND_CONFIGS }java-build-file"
+      [ -z "$PROJECT_DIR" ] && PROJECT_DIR="$search_dir"
+    fi
     # Move to parent directory
     if [ "$search_dir" = "$REPO_ROOT" ]; then
       break

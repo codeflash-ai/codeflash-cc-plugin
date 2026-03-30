@@ -113,17 +113,6 @@ Add a `codeflash` key to the target `package.json`. Use exactly this format:
 
 Merge this into the existing `package.json` object — do not overwrite other fields. After writing, confirm the configuration with the user before proceeding.
 
-### Check 3: Project Configuration (Python)
-
-```bash
-grep -rq '\[tool\.codeflash\]' $(git rev-parse --show-toplevel)/pyproject.toml 2>/dev/null
-```
-
-If this fails, the project configuration is missing. Walk upward from the current working directory to the git repository root, looking for a `pyproject.toml`.
-
-- If a `pyproject.toml` exists but lacks `[tool.codeflash]`, run **Configuration Discovery** below and append the section.
-- If no `pyproject.toml` exists, run **Configuration Discovery** and create one at the git repository root.
-
 ## Permissions Setup
 
 1. Check if `.claude/settings.json` exists in the project root (use `git rev-parse --show-toplevel` to find it).

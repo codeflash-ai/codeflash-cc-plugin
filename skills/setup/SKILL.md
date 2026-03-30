@@ -34,7 +34,7 @@ codeflash auth status
 
 If this fails, the user is not authenticated. Run `codeflash auth login` interactively. This requires user interaction, so let them know the login flow is starting.
 
-### Check 3: Project Configuration
+### Check 3: Project Configuration (Python)
 
 ```bash
 grep -rq '\[tool\.codeflash\]' $(git rev-parse --show-toplevel)/pyproject.toml 2>/dev/null
@@ -42,10 +42,10 @@ grep -rq '\[tool\.codeflash\]' $(git rev-parse --show-toplevel)/pyproject.toml 2
 
 If this fails, the project configuration is missing. Walk upward from the current working directory to the git repository root, looking for a `pyproject.toml`.
 
-- If a `pyproject.toml` exists but lacks `[tool.codeflash]`, run **Configuration Discovery** below and append the section.
-- If no `pyproject.toml` exists, run **Configuration Discovery** and create one at the git repository root.
+- If a `pyproject.toml` exists but lacks `[tool.codeflash]`, run **Configuration Discovery (Python)** below and append the section.
+- If no `pyproject.toml` exists, run **Configuration Discovery (Python)** and create one at the git repository root.
 
-#### Configuration Discovery
+#### Configuration Discovery (Python)
 
 Perform the following discovery steps relative to the directory containing the target `pyproject.toml`:
 
@@ -66,12 +66,76 @@ Append the `[tool.codeflash]` section to the target `pyproject.toml`. Use exactl
 # All paths are relative to this pyproject.toml's directory.
 module-root = "<discovered module root>"
 tests-root = "<discovered tests folder>"
-ignore-paths = []
+ignore-paths = ["dist", "**/node_modules", "**/__tests__"]
 formatter-cmds = ["disabled"]
 ```
 
 After writing, confirm the configuration with the user before proceeding.
 
+### Check 3: Project Configuration (Javascript/Typescript)
+
+```bash
+grep -rq 'codeflash' $(git rev-parse --show-toplevel)/package.json 2>/dev/null
+```
+
+If this fails, the project configuration is missing. Walk upward from the current working directory to the git repository root, looking for a `package.json`.
+
+- If a `package.json` exists but lacks the `codeflash` key, run **Configuration Discovery (Javascript/Typescript)** below and append the section.
+- If no `package.json` exists, run **Configuration Discovery (Javascript/Typescript)** and create one at the git repository root.
+
+#### Configuration Discovery (Javascript/Typescript)
+
+Perform the following discovery steps relative to the directory containing the target `package.json`:
+
+**Discover module root:**
+Find the relative path to the root of the source code. The module root is where the main application or library code lives. Look for the `main`, `module`, or `exports` fields in `package.json` for hints. Common patterns: `src/`, `lib/`, `dist/` (for compiled output — prefer the source directory), or the project root itself. If a `tsconfig.json` exists, check its `rootDir` or `include` fields for guidance.
+
+**Discover tests folder:**
+Find the relative path to the tests directory. Look for:
+1. Existing directories named `tests`, `test`, `__tests__`, or `spec`
+2. Folders containing files matching `*.test.ts`, `*.test.js`, `*.spec.ts`, `*.spec.js`
+3. Test runner configuration in `package.json` (e.g., `jest.testMatch`, `jest.roots`) or config files (`jest.config.*`, `vitest.config.*`)
+If no tests directory exists, default to `tests`.
+
+**Write the configuration:**
+Add a `codeflash` key to the target `package.json`. Use exactly this format:
+
+```json
+{
+  "codeflash": {
+    "moduleRoot": "<discovered module root>",
+    "testsRoot": "<discovered tests folder>",
+    "ignorePaths": [],
+    "formatterCmds": ["disabled"]
+  }
+}
+```
+
+Merge this into the existing `package.json` object — do not overwrite other fields. After writing, confirm the configuration with the user before proceeding.
+
+### Check 3: Project Configuration (Python)
+
+```bash
+grep -rq '\[tool\.codeflash\]' $(git rev-parse --show-toplevel)/pyproject.toml 2>/dev/null
+```
+
+If this fails, the project configuration is missing. Walk upward from the current working directory to the git repository root, looking for a `pyproject.toml`.
+
+- If a `pyproject.toml` exists but lacks `[tool.codeflash]`, run **Configuration Discovery** below and append the section.
+- If no `pyproject.toml` exists, run **Configuration Discovery** and create one at the git repository root.
+
+## Permissions Setup
+
+1. Check if `.claude/settings.json` exists in the project root (use `git rev-parse --show-toplevel` to find it).
+
+2. If the file exists, read it and check if `Bash(*codeflash*)` is already in `permissions.allow`.
+
+3. If already configured, tell the user: "Codeflash is already configured to run automatically. No changes needed."
+
+4. If not configured, add `Bash(*codeflash*)` to the `permissions.allow` array in `.claude/settings.json`. Create the file and any necessary parent directories if they don't exist. Preserve any existing settings.
+
+5. Confirm to the user what was added and explain: "Codeflash will now run automatically in the background after commits that change code files, without prompting for permission each time."
+
 ## After Setup
 
-Once all checks pass, inform the user that codeflash is ready and they can retry their optimization.
+Once all checks pass, inform the user that codeflash is ready, and they can retry their optimization.

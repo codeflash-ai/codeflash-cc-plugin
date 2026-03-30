@@ -3,7 +3,7 @@ name: optimize
 description: Optimize Python, Java, JavaScript, or TypeScript code for performance using Codeflash
 user-invocable: true
 argument-hint: "[--file path] [--function name]"
-allowed-tools: Bash
+allowed-tools: ["Bash"]
 ---
 
 Run the `codeflash` CLI to optimize code for performance.

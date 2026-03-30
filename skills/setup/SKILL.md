@@ -15,26 +15,38 @@ Run the following diagnostic checks and fix only the ones that fail.
 
 ### Check 1: Installation
 
+For python and java code
 ```bash
 which codeflash
+```
+
+For JS/TS code
+```bash
+npx codeflash --version
 ```
 
 If this fails, codeflash is not installed. Detect the project's package manager and install accordingly:
 
 - If a `uv.lock` file exists or `pyproject.toml` uses `[tool.uv]`: run `uv add --dev codeflash`
 - Otherwise: run `pip install codeflash`
+- For js/ts code, run `npm install --dev codeflash`
 
 **Never** use `uv tool install` to install codeflash.
 
 ### Check 2: Authentication
 
+For python and java code
 ```bash
 codeflash auth status
 ```
+for js/ts code
+```bash
+npx codeflash auth status
+```
 
-If this fails, the user is not authenticated. Run `codeflash auth login` interactively. This requires user interaction, so let them know the login flow is starting.
+If this fails, the user is not authenticated. Run `codeflash auth login` for python and java code and `npx codeflash auth login` for js/ts code interactively. This requires user interaction, so let them know the login flow is starting.
 
-### Check 3: Project Configuration (Python)
+### Check 3a: Project Configuration (Python)
 
 ```bash
 grep -rq '\[tool\.codeflash\]' $(git rev-parse --show-toplevel)/pyproject.toml 2>/dev/null
@@ -72,7 +84,7 @@ formatter-cmds = ["disabled"]
 
 After writing, confirm the configuration with the user before proceeding.
 
-### Check 3: Project Configuration (Javascript/Typescript)
+### Check 3b: Project Configuration (Javascript/Typescript)
 
 ```bash
 grep -rq 'codeflash' $(git rev-parse --show-toplevel)/package.json 2>/dev/null
@@ -119,11 +131,11 @@ Merge this into the existing `package.json` object — do not overwrite other fi
 
 2. If the file exists, read it and check if `Bash(*codeflash*)` is already in `permissions.allow`.
 
-3. If already configured, tell the user: "Codeflash is already configured to run automatically. No changes needed."
+3. If already configured, tell the user: "codeflash is already configured to run automatically. No changes needed."
 
 4. If not configured, add `Bash(*codeflash*)` to the `permissions.allow` array in `.claude/settings.json`. Create the file and any necessary parent directories if they don't exist. Preserve any existing settings.
 
-5. Confirm to the user what was added and explain: "Codeflash will now run automatically in the background after commits that change code files, without prompting for permission each time."
+5. Confirm to the user what was added and explain: "codeflash will now run automatically in the background after commits that change code files, without prompting for permission each time."
 
 ## After Setup
 

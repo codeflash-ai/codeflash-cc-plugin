@@ -10,7 +10,8 @@ Run the `codeflash` CLI to optimize code for performance.
 
 ## Build the command
 
-Start with: `codeflash --subagent`
+Start with: `codeflash --subagent` for Python and Java Code
+Start with: `npx codeflash --subagent`for JS/TS Code
 
 Then add flags based on `$ARGUMENTS`:
 - If a `--file` path was provided: add `--file <path>`

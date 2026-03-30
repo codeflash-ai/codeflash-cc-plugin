@@ -19,7 +19,11 @@ For python and java code
 ```bash
 which codeflash
 ```
-
+or
+```bash
+uv run codeflash --version
+```
+if a `uv.lock` file is present in the directory.
 For JS/TS code
 ```bash
 npx codeflash --version

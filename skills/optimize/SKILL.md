@@ -10,7 +10,7 @@ Run the `codeflash` CLI to optimize code for performance.
 
 ## Build the command
 
-Start with: `codeflash --subagent` for Python and Java Code
+Start with: `codeflash --subagent` for Python and Java Code or `uv run codeflash --subagent` if a `uv.lock` file is present.
 Start with: `npx codeflash --subagent`for JS/TS Code
 
 Then add flags based on `$ARGUMENTS`:

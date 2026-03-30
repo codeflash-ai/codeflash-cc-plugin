@@ -28,7 +28,7 @@ npx codeflash --version
 If this fails, codeflash is not installed. Detect the project's package manager and install accordingly:
 
 - If a `uv.lock` file exists or `pyproject.toml` uses `[tool.uv]`: run `uv add --dev codeflash`
-- Otherwise: run `pip install codeflash`
+- Otherwise: run `pip install codeflash` or `uv pip install codeflash` if there is a uv.lock file present in the directory. 
 - For js/ts code, run `npm install --dev codeflash`
 
 **Never** use `uv tool install` to install codeflash.
@@ -48,14 +48,10 @@ If this fails, the user is not authenticated. Run `codeflash auth login` for pyt
 
 ### Check 3a: Project Configuration (Python)
 
-```bash
-grep -rq '\[tool\.codeflash\]' $(git rev-parse --show-toplevel)/pyproject.toml 2>/dev/null
-```
+Find the `pyproject.toml` file closest to the file/files of concern (the file passed to codeflash --file or the files which changed in the diff). Confirm that a `[tool.codeflash]` section exists in the pyproject file found.
 
-If this fails, the project configuration is missing. Walk upward from the current working directory to the git repository root, looking for a `pyproject.toml`.
-
-- If a `pyproject.toml` exists but lacks `[tool.codeflash]`, run **Configuration Discovery (Python)** below and append the section.
-- If no `pyproject.toml` exists, run **Configuration Discovery (Python)** and create one at the git repository root.
+- If the `pyproject.toml` file exists but lacks `[tool.codeflash]`, run **Configuration Discovery (Python)** below and append the section.
+- If no `pyproject.toml` exists, run **Configuration Discovery (Python)** below and create one.
 
 #### Configuration Discovery (Python)
 
@@ -86,11 +82,7 @@ After writing, confirm the configuration with the user before proceeding.
 
 ### Check 3b: Project Configuration (Javascript/Typescript)
 
-```bash
-grep -rq 'codeflash' $(git rev-parse --show-toplevel)/package.json 2>/dev/null
-```
-
-If this fails, the project configuration is missing. Walk upward from the current working directory to the git repository root, looking for a `package.json`.
+Find the `package.json` file closest to the file/files of concern (the file passed to codeflash --file or the files which changed in the diff). Confirm that a `codeflash` key exists in the package.json file found.
 
 - If a `package.json` exists but lacks the `codeflash` key, run **Configuration Discovery (Javascript/Typescript)** below and append the section.
 - If no `package.json` exists, run **Configuration Discovery (Javascript/Typescript)** and create one at the git repository root.

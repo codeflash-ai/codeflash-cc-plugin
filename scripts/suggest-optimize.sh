@@ -111,53 +111,8 @@ if [ -f "$SEEN_MARKER" ] && grep -qF "$COMMIT_HASH" "$SEEN_MARKER" 2>/dev/null; 
 fi
 echo "$COMMIT_HASH" >> "$SEEN_MARKER"
 
-# Walk from $PWD upward to $REPO_ROOT looking for project config.
-# Sets: PROJECT_TYPE, PROJECT_DIR, PROJECT_CONFIG_PATH, PROJECT_CONFIGURED
-detect_project() {
-  PROJECT_TYPE=""
-  PROJECT_DIR=""
-  PROJECT_CONFIG_PATH=""
-  PROJECT_CONFIGURED="false"
-  local search_dir="$PWD"
-  while true; do
-    if [ -f "$search_dir/pyproject.toml" ]; then
-      PROJECT_TYPE="python"
-      PROJECT_DIR="$search_dir"
-      PROJECT_CONFIG_PATH="$search_dir/pyproject.toml"
-      if grep -q '\[tool\.codeflash\]' "$search_dir/pyproject.toml" 2>/dev/null; then
-        PROJECT_CONFIGURED="true"
-      fi
-      break
-    fi
-    if [ -f "$search_dir/package.json" ]; then
-      PROJECT_TYPE="js"
-      PROJECT_DIR="$search_dir"
-      PROJECT_CONFIG_PATH="$search_dir/package.json"
-      if jq -e '.codeflash' "$search_dir/package.json" >/dev/null 2>&1; then
-        PROJECT_CONFIGURED="true"
-      fi
-      break
-    fi
-    if [ "$search_dir" = "$REPO_ROOT" ]; then
-      break
-    fi
-    local parent
-    parent="$(dirname "$search_dir")"
-    if [ "$parent" = "$search_dir" ]; then
-      break
-    fi
-    case "$parent" in
-      "$REPO_ROOT"|"$REPO_ROOT"/*) search_dir="$parent" ;;
-      *) break ;;
-    esac
-  done
-}
-
-# Discover project config
-detect_project
-
 # --- JS/TS project path ---------------------------------------------------
-if [ "$PROJECT_TYPE" = "js" ] && [ "$HAS_JS_CHANGES" = "true" ]; then
+if [ "$HAS_JS_CHANGES" = "true" ]; then
   MESSAGE="JS/TS files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to to optimize the JavaScript/TypeScript code for performance. Use npx to execute codeflash"
   jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
   exit 0

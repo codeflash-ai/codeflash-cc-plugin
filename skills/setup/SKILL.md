@@ -28,7 +28,7 @@ npx codeflash --version
 If this fails, codeflash is not installed. Detect the project's package manager and install accordingly:
 
 - If a `uv.lock` file exists or `pyproject.toml` uses `[tool.uv]`: run `uv add --dev codeflash`
-- Otherwise: run `pip install codeflash` or `uv pip install codeflash` if there is a uv.lock file present in the directory. 
+- Otherwise: run `pip install codeflash` or `uv pip install codeflash` if there is a `uv.lock` file present in the directory.
 - For js/ts code, run `npm install --dev codeflash`
 
 **Never** use `uv tool install` to install codeflash.
@@ -39,12 +39,18 @@ For python and java code
 ```bash
 codeflash auth status
 ```
+or
+```bash
+uv run codeflash auth status
+```
+if `uv.lock` is present.
+
 for js/ts code
 ```bash
 npx codeflash auth status
 ```
 
-If this fails, the user is not authenticated. Run `codeflash auth login` for python and java code and `npx codeflash auth login` for js/ts code interactively. This requires user interaction, so let them know the login flow is starting.
+If this fails, the user is not authenticated. Run `codeflash auth login` or `uv run codeflash auth login` if `uv.lock` is present for python and java code and `npx codeflash auth login` for js/ts code interactively. This requires user interaction, so let them know the login flow is starting.
 
 ### Check 3a: Project Configuration (Python)
 

@@ -240,6 +240,23 @@ run_hook() {
   env -u VIRTUAL_ENV "$@" bash "$SUGGEST_OPTIMIZE" < "$input_file"
 }
 
+# Run hook with a custom transcript path (for multi-session tests).
+# Usage: run_hook_with_transcript <transcript_path> <stop_active> [ENV_VAR=value ...]
+run_hook_with_transcript() {
+  local transcript="$1"
+  local stop_active="${2:-false}"
+  shift 2 || true
+
+  local input_file="$BATS_TEST_TMPDIR/hook_input.json"
+  jq -nc \
+    --arg tp "$transcript" \
+    --argjson sa "$stop_active" \
+    '{transcript_path: $tp, stop_hook_active: $sa}' > "$input_file"
+
+  cd "$REPO"
+  env -u VIRTUAL_ENV "$@" bash "$SUGGEST_OPTIMIZE" < "$input_file"
+}
+
 # ---------------------------------------------------------------------------
 # Assertions
 # ---------------------------------------------------------------------------

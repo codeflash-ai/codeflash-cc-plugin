@@ -44,53 +44,68 @@ TRANSCRIPT_DIR=$(dirname "$TRANSCRIPT_PATH")
 # --- Cheap gate: skip if HEAD hasn't changed since last check ---
 CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null) || exit 0
 LAST_HEAD_FILE="$TRANSCRIPT_DIR/codeflash-last-head"
-if [ -f "$LAST_HEAD_FILE" ] && [ "$(cat "$LAST_HEAD_FILE")" = "$CURRENT_HEAD" ]; then
-  exit 0
+PREV_HEAD=""
+if [ -f "$LAST_HEAD_FILE" ]; then
+  PREV_HEAD=$(cat "$LAST_HEAD_FILE")
+  if [ "$PREV_HEAD" = "$CURRENT_HEAD" ]; then
+    exit 0
+  fi
 fi
 echo "$CURRENT_HEAD" > "$LAST_HEAD_FILE"
 
-# Get the transcript file's creation (birth) time as the session start timestamp.
-# This predates any commits Claude could have made in this session.
-get_file_birth_time() {
-  local file="$1"
-  if [[ "$(uname)" == "Darwin" ]]; then
-    stat -f %B "$file"
-  else
-    local btime
-    btime=$(stat -c %W "$file" 2>/dev/null || echo "0")
-    if [ "$btime" = "0" ] || [ -z "$btime" ]; then
-      stat -c %Y "$file"
-    else
-      echo "$btime"
-    fi
-  fi
-}
+# --- Find new commits with target-language files ---
+# Strategy: when a previous HEAD is cached (from a prior hook invocation), use
+# `git log PREV_HEAD..HEAD` to catch commits made both *during* and *between*
+# sessions. Fall back to transcript-birth-time-based detection only on the very
+# first invocation (no cached HEAD yet).
 
-SESSION_START=$(get_file_birth_time "$TRANSCRIPT_PATH")
-if [ -z "$SESSION_START" ] || [ "$SESSION_START" = "0" ]; then
-  exit 0
+COMMIT_RANGE_ARGS=()
+if [ -n "$PREV_HEAD" ] && git merge-base --is-ancestor "$PREV_HEAD" "$CURRENT_HEAD" 2>/dev/null; then
+  # PREV_HEAD is an ancestor of current HEAD — use the range
+  COMMIT_RANGE_ARGS=("$PREV_HEAD..$CURRENT_HEAD")
+else
+  # First run or history rewritten (rebase/force-push) — fall back to session start time
+  get_file_birth_time() {
+    local file="$1"
+    if [[ "$(uname)" == "Darwin" ]]; then
+      stat -f %B "$file"
+    else
+      local btime
+      btime=$(stat -c %W "$file" 2>/dev/null || echo "0")
+      if [ "$btime" = "0" ] || [ -z "$btime" ]; then
+        stat -c %Y "$file"
+      else
+        echo "$btime"
+      fi
+    fi
+  }
+
+  SESSION_START=$(get_file_birth_time "$TRANSCRIPT_PATH")
+  if [ -z "$SESSION_START" ] || [ "$SESSION_START" = "0" ]; then
+    exit 0
+  fi
+  COMMIT_RANGE_ARGS=("--after=@$SESSION_START")
 fi
 
-# Find commits with Python/Java/JS/TS files made after the session started
-CHANGED_COMMITS=$(git log --after="@$SESSION_START" --name-only --diff-filter=ACMR --pretty=format: -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | sort -u | grep -v '^$' || true)
-if [ -z "$CHANGED_COMMITS" ]; then
+CHANGED_FILES=$(git log "${COMMIT_RANGE_ARGS[@]}" --name-only --diff-filter=ACMR --pretty=format: -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | sort -u | grep -v '^$' || true)
+if [ -z "$CHANGED_FILES" ]; then
   exit 0
 fi
 
 # Determine which language families actually had changes
 HAS_PYTHON_CHANGES="false"
 HAS_JS_CHANGES="false"
-if echo "$CHANGED_COMMITS" | grep -qE '\.py$'; then
+if echo "$CHANGED_FILES" | grep -qE '\.py$'; then
   HAS_PYTHON_CHANGES="true"
 fi
-if echo "$CHANGED_COMMITS" | grep -qE '\.(js|ts|jsx|tsx)$'; then
+if echo "$CHANGED_FILES" | grep -qE '\.(js|ts|jsx|tsx)$'; then
   HAS_JS_CHANGES="true"
 fi
 
-# Dedup: don't trigger twice for the same set of changes across sessions.
+# Dedup: don't trigger twice for the same set of changes.
 SEEN_MARKER="$TRANSCRIPT_DIR/codeflash-seen"
 
-COMMIT_HASH=$(git log --after="@$SESSION_START" --pretty=format:%H -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+COMMIT_HASH=$(git log "${COMMIT_RANGE_ARGS[@]}" --pretty=format:%H -- '*.py' '*.java' '*.js' '*.ts' '*.jsx' '*.tsx' 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
 if [ -f "$SEEN_MARKER" ] && grep -qF "$COMMIT_HASH" "$SEEN_MARKER" 2>/dev/null; then
   exit 0
 fi

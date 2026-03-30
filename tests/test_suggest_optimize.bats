@@ -116,6 +116,60 @@ setup() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Between-sessions detection — commits made before a new session starts
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Setup:    Fully configured Python project. Session A runs the hook (caching HEAD).
+#           A new commit is made. Session B starts (new transcript, born AFTER the
+#           commit). Session B's hook runs.
+# Validates: When a user makes a commit in another terminal between sessions,
+#           the hook uses the cached PREV_HEAD..HEAD range (not --after=session_start)
+#           to detect the commit even though it predates Session B's transcript.
+# Expected: Session B blocks with optimization suggestion.
+@test "detects commit made between sessions (before new session starts)" {
+  create_pyproject true
+  create_fake_venv "$REPO/.venv"
+
+  # Session A: run hook to cache HEAD
+  run run_hook false "VIRTUAL_ENV=$REPO/.venv"
+  assert_no_block
+
+  # User makes commit (uses future timestamp to be after session A)
+  add_python_commit "app.py"
+
+  # Session B: new transcript file (born AFTER the commit, via future_timestamp trick)
+  local session_b_transcript="$TRANSCRIPT_DIR/session_b.jsonl"
+  touch "$session_b_transcript"
+
+  # Session B's hook should detect the commit via PREV_HEAD..HEAD range
+  run run_hook_with_transcript "$session_b_transcript" false "VIRTUAL_ENV=$REPO/.venv"
+  assert_block
+  assert_reason_contains "codeflash"
+}
+
+# Setup:    Same as above but the between-sessions commit is a non-target file (.txt).
+# Validates: The PREV_HEAD..HEAD range still correctly filters by file extension.
+# Expected: No block (commit has no target-language files).
+@test "ignores non-target between-sessions commit" {
+  create_pyproject true
+  create_fake_venv "$REPO/.venv"
+
+  # Session A
+  run run_hook false "VIRTUAL_ENV=$REPO/.venv"
+  assert_no_block
+
+  # Non-target commit
+  add_irrelevant_commit "notes.txt"
+
+  # Session B
+  local session_b_transcript="$TRANSCRIPT_DIR/session_b.jsonl"
+  touch "$session_b_transcript"
+
+  run run_hook_with_transcript "$session_b_transcript" false "VIRTUAL_ENV=$REPO/.venv"
+  assert_no_block
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Python projects
 # ═══════════════════════════════════════════════════════════════════════════════
 

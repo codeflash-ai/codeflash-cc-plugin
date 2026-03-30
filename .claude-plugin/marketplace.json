@@ -6,13 +6,13 @@
   },
   "metadata": {
     "description": "Codeflash plugin for Claude Code — optimize code for performance (Python, Java, JavaScript, TypeScript)",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "plugins": [
     {
       "name": "codeflash",
       "description": "Run codeflash as a background agent to optimize code for performance (Python, Java, JavaScript, TypeScript)",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "author": {
         "name": "Codeflash",
         "email": "support@codeflash.ai"

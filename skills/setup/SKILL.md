@@ -13,9 +13,13 @@ Set up codeflash when it is missing, unauthenticated, or unconfigured. This skil
 
 Run the following diagnostic checks and fix only the ones that fail.
 
+### Check 0: Valid Git Repo
+
+If cwd is not part of a valid git repo then exit early, codeflash only works on git repos.
+
 ### Check 1: Installation
 
-For python and java code
+For python and java code, if no virtual environment is active activate the closest virtual environment and do
 ```bash
 which codeflash
 ```
@@ -32,7 +36,7 @@ npx codeflash --version
 If this fails, codeflash is not installed. Detect the project's package manager and install accordingly:
 
 - If a `uv.lock` file exists or `pyproject.toml` uses `[tool.uv]`: run `uv add --dev codeflash`
-- Otherwise: run `pip install codeflash` or `uv pip install codeflash` if there is a `uv.lock` file present in the directory.
+- Otherwise: activate the closest virtual environment if no virtual environment is active and do `pip install codeflash` or just `uv pip install codeflash` if there is a `uv.lock` file present in the directory.
 - For js/ts code, run `npm install --dev codeflash`
 
 **Never** use `uv tool install` to install codeflash.

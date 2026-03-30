@@ -2,7 +2,7 @@
 name: setup
 description: "This skill should be used when codeflash fails to run due to missing installation, authentication issues, or missing project configuration. It handles installing codeflash (via pip or uv), authenticating, and configuring pyproject.toml. Trigger phrases: \"setup codeflash\", \"configure codeflash\", \"codeflash is not installed\", \"codeflash auth failed\", \"fix codeflash setup\"."
 color: cyan
-tools: ["Read", "Glob", "Grep", "Bash", "Write", "Edit", "Task"]
+tools: ["Read", "Glob", "Grep", "Bash", "Write", "Task"]
 ---
 
 # Codeflash Setup

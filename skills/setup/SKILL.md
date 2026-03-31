@@ -17,50 +17,7 @@ Run the following diagnostic checks and fix only the ones that fail.
 
 If cwd is not part of a valid git repo then exit early, codeflash only works on git repos.
 
-### Check 1: Installation
-
-For python and java code, if no virtual environment is active activate the closest virtual environment and do
-```bash
-which codeflash
-```
-or
-```bash
-uv run codeflash --version
-```
-if a `uv.lock` file is present in the directory.
-For JS/TS code
-```bash
-npx codeflash --version
-```
-
-If this fails, codeflash is not installed. Detect the project's package manager and install accordingly:
-
-- If a `uv.lock` file exists or `pyproject.toml` uses `[tool.uv]`: run `uv add --dev codeflash`
-- Otherwise: activate the closest virtual environment if no virtual environment is active and do `pip install codeflash` or just `uv pip install codeflash` if there is a `uv.lock` file present in the directory.
-- For js/ts code, run `npm install --dev codeflash`
-
-**Never** use `uv tool install` to install codeflash.
-
-### Check 2: Authentication
-
-For python and java code
-```bash
-codeflash auth status
-```
-or
-```bash
-uv run codeflash auth status
-```
-if `uv.lock` is present.
-
-for js/ts code
-```bash
-npx codeflash auth status
-```
-
-If this fails, the user is not authenticated. Run `codeflash auth login` or `uv run codeflash auth login` if `uv.lock` is present for python and java code and `npx codeflash auth login` for js/ts code interactively. This requires user interaction, so let them know the login flow is starting.
-
-### Check 3a: Project Configuration (Python)
+### Check 1a: Project Configuration (Python)
 
 Find the `pyproject.toml` file closest to the file/files of concern (the file passed to codeflash --file or the files which changed in the diff). Confirm that a `[tool.codeflash]` section exists in the pyproject file found.
 
@@ -94,7 +51,7 @@ formatter-cmds = ["disabled"]
 
 After writing, confirm the configuration with the user before proceeding.
 
-### Check 3b: Project Configuration (Javascript/Typescript)
+### Check 1b: Project Configuration (Javascript/Typescript)
 
 Find the `package.json` file closest to the file/files of concern (the file passed to codeflash --file or the files which changed in the diff). Confirm that a `codeflash` key exists in the package.json file found.
 
@@ -131,6 +88,51 @@ Add a `codeflash` key to the target `package.json`. Use exactly this format:
 
 Merge this into the existing `package.json` object — do not overwrite other fields. After writing, confirm the configuration with the user before proceeding.
 
+### Check 2: Installation
+
+Firstly, `cd` into the directory where you found the `pyproject.toml`/`package.json`.
+
+For python and java code, if no virtual environment is active activate the closest virtual environment and do
+```bash
+which codeflash
+```
+or
+```bash
+uv run codeflash --version
+```
+if a `uv.lock` file is present in the directory.
+For JS/TS code
+```bash
+npx codeflash --version
+```
+
+If this fails, codeflash is not installed. Detect the project's package manager and install accordingly:
+
+- If a `uv.lock` file exists or `pyproject.toml` uses `[tool.uv]`: run `uv add --dev codeflash`
+- Otherwise: activate the closest virtual environment if no virtual environment is active and do `pip install codeflash` or just `uv pip install codeflash` if there is a `uv.lock` file present in the directory.
+- For js/ts code, run `npm install --dev codeflash`
+
+**Never** use `uv tool install` to install codeflash.
+
+### Check 3: Authentication
+
+For python and java code
+```bash
+codeflash auth status
+```
+or
+```bash
+uv run codeflash auth status
+```
+if `uv.lock` is present.
+
+for js/ts code
+```bash
+npx codeflash auth status
+```
+
+If this fails, the user is not authenticated. Run `codeflash auth login` or `uv run codeflash auth login` if `uv.lock` is present for python and java code and `npx codeflash auth login` for js/ts code interactively. This requires user interaction, so let them know the login flow is starting.
+
 ## Permissions Setup
 
 1. Check if `.claude/settings.json` exists in the project root (use `git rev-parse --show-toplevel` to find it).
@@ -145,4 +147,4 @@ Merge this into the existing `package.json` object — do not overwrite other fi
 
 ## After Setup
 
-Once all checks pass, inform the user that codeflash is ready, and they can retry their optimization.
+Once all checks pass, inform the user that codeflash is ready, and spawn the optimizer skill.

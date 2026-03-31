@@ -8,6 +8,16 @@ allowed-tools: ["Bash"]
 
 Run the `codeflash` CLI to optimize code for performance.
 
+## File and Function disambiguation
+
+Disambiguate the file and function from `$ARGUMENTS` if --file and/or --function are not provided.
+
+## Correct cwd
+
+Based on the language of the file/s of concern, Find the `pyproject.toml` (Python) /`package.json` (JS/TS) file closest to the file/files of concern (the file passed to codeflash --file or the files which changed in the diff).
+
+`cd` into the directory where you found the `pyproject.toml`/`package.json`.
+
 ## Build the command
 
 Start with: `codeflash --subagent` for Python and Java Code or `uv run codeflash --subagent` if a `uv.lock` file is present.

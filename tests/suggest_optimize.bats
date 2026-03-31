@@ -156,7 +156,7 @@ load test_helper
 # --- detect_changed_languages tests ---
 
 @test "detect_changed_languages detects python" {
-  export CHANGED_COMMITS="src/main.py
+  export CHANGED_FILES="src/main.py
 tests/test_utils.py"
   load_hook_functions
   detect_changed_languages
@@ -164,14 +164,14 @@ tests/test_utils.py"
 }
 
 @test "detect_changed_languages detects java" {
-  export CHANGED_COMMITS="src/Main.java"
+  export CHANGED_FILES="src/Main.java"
   load_hook_functions
   detect_changed_languages
   [[ "$CHANGED_LANGS" == *"java"* ]]
 }
 
 @test "detect_changed_languages detects javascript from ts and jsx" {
-  export CHANGED_COMMITS="src/App.tsx
+  export CHANGED_FILES="src/App.tsx
 src/utils.js"
   load_hook_functions
   detect_changed_languages
@@ -179,7 +179,7 @@ src/utils.js"
 }
 
 @test "detect_changed_languages detects mixed languages" {
-  export CHANGED_COMMITS="src/main.py
+  export CHANGED_FILES="src/main.py
 src/Main.java
 src/app.ts"
   load_hook_functions
@@ -190,7 +190,7 @@ src/app.ts"
 }
 
 @test "detect_changed_languages returns empty for no recognized files" {
-  export CHANGED_COMMITS="README.md
+  export CHANGED_FILES="README.md
 Makefile"
   load_hook_functions
   detect_changed_languages
@@ -198,14 +198,14 @@ Makefile"
 }
 
 @test "detect_changed_languages detects js from .jsx files" {
-  export CHANGED_COMMITS="src/Component.jsx"
+  export CHANGED_FILES="src/Component.jsx"
   load_hook_functions
   detect_changed_languages
   [[ "$CHANGED_LANGS" == *"javascript"* ]]
 }
 
 @test "detect_changed_languages detects js from .tsx files" {
-  export CHANGED_COMMITS="src/Page.tsx"
+  export CHANGED_FILES="src/Page.tsx"
   load_hook_functions
   detect_changed_languages
   [[ "$CHANGED_LANGS" == *"javascript"* ]]

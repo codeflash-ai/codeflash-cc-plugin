@@ -10,7 +10,7 @@ Run the `codeflash` CLI to optimize code for performance.
 
 ## File and Function disambiguation
 
-Disambiguate the file and function from `$ARGUMENTS` if --file and/or --function are not provided.
+Disambiguate the file and function from `$ARGUMENTS` if --file and/or --function are not provided explicitly.
 
 ## Correct cwd
 

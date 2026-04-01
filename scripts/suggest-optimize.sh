@@ -111,6 +111,18 @@ if [ -f "$SEEN_MARKER" ] && grep -qF "$COMMIT_HASH" "$SEEN_MARKER" 2>/dev/null; 
 fi
 echo "$COMMIT_HASH" >> "$SEEN_MARKER"
 
+# Dedup: skip if all changed files were already sent to codeflash in this session.
+# This prevents re-triggering when codeflash's own optimized changes are committed.
+OPTIMIZED_FILES_MARKER="$TRANSCRIPT_DIR/codeflash-optimized-files"
+if [ -f "$OPTIMIZED_FILES_MARKER" ]; then
+  UNSEEN_FILES=$(comm -23 <(echo "$CHANGED_FILES" | sort) <(sort "$OPTIMIZED_FILES_MARKER"))
+  if [ -z "$UNSEEN_FILES" ]; then
+    exit 0
+  fi
+fi
+# Record the files we're about to send to codeflash
+echo "$CHANGED_FILES" >> "$OPTIMIZED_FILES_MARKER"
+
 # --- JS/TS project path ---------------------------------------------------
 if [ "$HAS_JS_CHANGES" = "true" ]; then
   MESSAGE="JS/TS files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to to optimize the JavaScript/TypeScript code for performance. Use npx to execute codeflash"

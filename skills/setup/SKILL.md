@@ -88,9 +88,14 @@ Add a `codeflash` key to the target `package.json`. Use exactly this format:
 
 Merge this into the existing `package.json` object — do not overwrite other fields. After writing, confirm the configuration with the user before proceeding.
 
+### Check 1c: Project Configuration (Java)
+
+Find the `pom.xml` (if it's a maven project) or `build.gradle.kts` (if it's a gradle project) file closest to the file/files of concern (the file passed to codeflash --file or the files which changed in the diff). 
+
+
 ### Check 2: Installation
 
-Firstly, `cd` into the directory where you found the `pyproject.toml`/`package.json`.
+Firstly, `cd` into the directory where you found the `pyproject.toml`/`package.json`/`pom.xml`/`build.gradle.kts` file.
 
 For python and java code, if no virtual environment is active activate the closest virtual environment and do
 ```bash

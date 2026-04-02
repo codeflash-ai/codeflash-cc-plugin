@@ -90,8 +90,54 @@ Merge this into the existing `package.json` object — do not overwrite other fi
 
 ### Check 1c: Project Configuration (Java)
 
-Find the `pom.xml` (if it's a maven project) or `build.gradle.kts` (if it's a gradle project) file closest to the file/files of concern (the file passed to codeflash --file or the files which changed in the diff). 
+Find the `pom.xml` (Maven) or `build.gradle`/`build.gradle.kts` (Gradle) file closest to the file/files of concern (the file passed to codeflash --file or the files which changed in the diff).
 
+For Maven projects, check if `codeflash.*` properties exist in the `<properties>` section of `pom.xml`. For Gradle projects, check if `codeflash.*` properties exist in `gradle.properties`.
+
+- If the build file exists but lacks codeflash properties, run **Configuration Discovery (Java)** below and add them.
+- If no build file exists, exit early — Java projects require Maven or Gradle.
+
+#### Configuration Discovery (Java)
+
+Perform the following discovery steps relative to the directory containing the target `pom.xml` or `build.gradle`:
+
+**Discover source root:**
+Find the relative path to the Java source directory. Look for:
+1. Standard Maven/Gradle layout: `src/main/java`
+2. Custom `sourceDirectory` in `pom.xml`
+3. Fallback to `src` if it exists
+Default to `src/main/java`.
+
+**Discover test root:**
+Find the relative path to the Java test directory. Look for:
+1. Standard layout: `src/test/java`
+2. Custom `testSourceDirectory` in `pom.xml`
+3. Directories named `test` or `tests`
+Default to `src/test/java`.
+
+**Write the configuration:**
+
+For Maven projects, add `codeflash.*` properties to the `<properties>` section of `pom.xml`. Only write properties that differ from defaults:
+
+```xml
+<properties>
+    <!-- Only add if source root is NOT src/main/java -->
+    <codeflash.moduleRoot>src/main/java</codeflash.moduleRoot>
+    <!-- Only add if test root is NOT src/test/java -->
+    <codeflash.testsRoot>src/test/java</codeflash.testsRoot>
+</properties>
+```
+
+For Gradle projects, add properties to `gradle.properties` (create the file if it doesn't exist):
+
+```properties
+codeflash.moduleRoot=src/main/java
+codeflash.testsRoot=src/test/java
+```
+
+If the project uses the standard `src/main/java` and `src/test/java` layout, no config properties are needed — Codeflash auto-detects the defaults.
+
+After writing, confirm the configuration with the user before proceeding.
 
 ### Check 2: Installation
 

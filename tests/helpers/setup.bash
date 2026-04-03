@@ -83,6 +83,17 @@ add_ts_commit() {
     git -C "$REPO" commit -m "add $file" >/dev/null 2>&1
 }
 
+add_java_commit() {
+  local file="${1:-Main.java}"
+  mkdir -p "$REPO/$(dirname "$file")"
+  echo "public class Main {}" > "$REPO/$file"
+  git -C "$REPO" add -A >/dev/null 2>&1
+  local ts
+  ts=$(future_timestamp)
+  GIT_COMMITTER_DATE="@$ts" GIT_AUTHOR_DATE="@$ts" \
+    git -C "$REPO" commit -m "add $file" >/dev/null 2>&1
+}
+
 add_irrelevant_commit() {
   local file="${1:-data.txt}"
   echo "some data" > "$REPO/$file"

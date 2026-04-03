@@ -81,18 +81,16 @@ codeflash-cc-plugin/
 ├── .claude-plugin/
 │   ├── marketplace.json         # Marketplace manifest
 │   └── plugin.json              # Plugin manifest
-├── agents/
-│   └── optimizer.md             # Background optimization agent
-├── commands/
-│   └── setup.md                 # /setup command for auto-allow permissions
 ├── hooks/
 │   └── hooks.json               # Stop hook for commit detection
 ├── scripts/
 │   ├── find-venv.sh             # Shared helper: find and activate a Python venv
 │   └── suggest-optimize.sh      # Detects Python/Java/JS/TS changes, suggests /optimize
 ├── skills/
-│   └── optimize/
-│       └── SKILL.md             # /optimize slash command
+│   ├── optimize/
+│   │   └── SKILL.md             # /optimize slash command
+│   └── setup/
+│       └── SKILL.md             # /setup command for installation and configuration
 └── README.md
 ```
 

@@ -192,81 +192,76 @@ setup() {
 
 # Setup:    pyproject.toml with [tool.codeflash]. Fake venv exists but does NOT
 #           contain a codeflash binary. VIRTUAL_ENV set.
-# Validates: When codeflash is configured but not installed in the venv, the
-#           hook should prompt the user to install it before optimization can run.
-# Expected: Block with reason containing "pip install codeflash".
-@test "python: configured + codeflash NOT installed → install prompt" {
+# Validates: The simplified hook delegates all setup/install logic to the
+#           codeflash:optimize skill. Regardless of installation state, the
+#           hook should block and point to the skill.
+# Expected: Block with reason containing "codeflash:optimize".
+@test "python: configured + codeflash NOT installed → delegates to skill" {
   add_python_commit
   create_pyproject true
   create_fake_venv "$REPO/.venv" false
 
   run run_hook false "VIRTUAL_ENV=$REPO/.venv"
   assert_block
-  assert_reason_contains "pip install codeflash"
+  assert_reason_contains "codeflash:optimize"
 }
 
 # Setup:    pyproject.toml exists but has NO [tool.codeflash] section. Fake venv
 #           with codeflash binary installed. VIRTUAL_ENV set.
-# Validates: When codeflash is installed but not configured, the hook should
-#           instruct Claude to discover the project structure (module root,
-#           tests folder) and write the [tool.codeflash] config section.
-# Expected: Block with reason containing "[tool.codeflash]" and "module-root"
-#           (the config fields to be written).
-@test "python: NOT configured + codeflash installed → setup prompt" {
+# Validates: The hook no longer checks configuration state — it delegates to
+#           the skill which handles setup fallback internally.
+# Expected: Block with reason containing "codeflash:optimize".
+@test "python: NOT configured + codeflash installed → delegates to skill" {
   add_python_commit
   create_pyproject false
   create_fake_venv "$REPO/.venv"
 
   run run_hook false "VIRTUAL_ENV=$REPO/.venv"
   assert_block
-  assert_reason_contains "[tool.codeflash]"
-  assert_reason_contains "module-root"
+  assert_reason_contains "codeflash:optimize"
 }
 
 # Setup:    pyproject.toml without [tool.codeflash]. Fake venv WITHOUT codeflash
 #           binary. VIRTUAL_ENV set.
-# Validates: When both installation and configuration are missing, the hook
-#           should instruct Claude to both install codeflash and set up the
-#           config. The install step is embedded within the setup instructions.
-# Expected: Block with reason containing both "[tool.codeflash]" (setup) and
-#           "install codeflash" (installation).
-@test "python: NOT configured + NOT installed → setup + install prompt" {
+# Validates: Even when both installation and configuration are missing, the hook
+#           delegates to the skill (which handles setup fallback).
+# Expected: Block with reason containing "codeflash:optimize".
+@test "python: NOT configured + NOT installed → delegates to skill" {
   add_python_commit
   create_pyproject false
   create_fake_venv "$REPO/.venv" false
 
   run run_hook false "VIRTUAL_ENV=$REPO/.venv"
   assert_block
-  assert_reason_contains "[tool.codeflash]"
-  assert_reason_contains "install codeflash"
+  assert_reason_contains "codeflash:optimize"
 }
 
 # Setup:    pyproject.toml with [tool.codeflash]. No .venv or venv directory
 #           anywhere. VIRTUAL_ENV not set.
-# Validates: Without a virtual environment, codeflash cannot run. The hook
-#           reaches the no-venv code path. Currently the script exits non-zero
-#           due to an unset SETUP_PERMISSIONS_STEP variable (known issue).
-# Expected: Exit non-zero (script bug: unset variable with set -u).
-@test "python: no venv + configured → exits non-zero (known script bug)" {
+# Validates: The simplified hook no longer inspects venv state — it just detects
+#           Python file changes and delegates to the skill.
+# Expected: Block with reason containing "codeflash:optimize".
+@test "python: no venv + configured → delegates to skill" {
   add_python_commit
   create_pyproject true
   # No venv created, no VIRTUAL_ENV set
 
   run run_hook false
-  [ "$status" -ne 0 ]
+  assert_block
+  assert_reason_contains "codeflash:optimize"
 }
 
 # Setup:    pyproject.toml WITHOUT [tool.codeflash]. No venv anywhere.
 #           VIRTUAL_ENV not set.
-# Validates: Same no-venv code path. Currently the script exits non-zero
-#           due to an unset SETUP_PERMISSIONS_STEP variable (known issue).
-# Expected: Exit non-zero (script bug: unset variable with set -u).
-@test "python: no venv + NOT configured → exits non-zero (known script bug)" {
+# Validates: Same as above — hook delegates regardless of project state.
+# Expected: Block with reason containing "codeflash:optimize".
+@test "python: no venv + NOT configured → delegates to skill" {
   add_python_commit
   create_pyproject false
 
   run run_hook false
-  [ "$status" -ne 0 ]
+  assert_block
+  assert_reason_contains "codeflash:optimize"
 }
 
 # Setup:    pyproject.toml with [tool.codeflash]. Fake venv at $REPO/.venv with
@@ -311,55 +306,47 @@ setup() {
 
 # Setup:    package.json with "codeflash" key. Mock npx returns failure for
 #           `codeflash --version` (package not installed). One .js commit.
-# Validates: When codeflash is configured in package.json but the npm package
-#           is not installed, the hook should prompt to install it as a dev
-#           dependency before running.
-# Expected: Block with reason containing "npm install --save-dev codeflash".
-@test "js: configured + NOT installed → install prompt" {
+# Validates: The simplified hook delegates all setup/install logic to the
+#           codeflash:optimize skill regardless of installation state.
+# Expected: Block with reason containing "codeflash:optimize".
+@test "js: configured + NOT installed → delegates to skill" {
   add_js_commit
   create_package_json true
   setup_mock_npx false
 
   run run_hook false "PATH=$MOCK_BIN:$PATH"
   assert_block
-  assert_reason_contains "npm install --save-dev codeflash"
+  assert_reason_contains "codeflash:optimize"
 }
 
 # Setup:    package.json exists but has NO "codeflash" key. Mock npx returns
 #           success (codeflash is installed). One .js commit.
-# Validates: When codeflash is installed but not configured, the hook should
-#           instruct Claude to discover project structure and add the "codeflash"
-#           config key to package.json with moduleRoot, testsRoot, etc.
-# Expected: Block with reason containing "moduleRoot" and "testsRoot"
-#           (the config fields to be added to package.json).
-@test "js: NOT configured + installed → setup prompt" {
+# Validates: The hook no longer checks configuration state — it delegates to
+#           the skill which handles setup fallback internally.
+# Expected: Block with reason containing "codeflash:optimize".
+@test "js: NOT configured + installed → delegates to skill" {
   add_js_commit
   create_package_json false
   setup_mock_npx true
 
   run run_hook false "PATH=$MOCK_BIN:$PATH"
   assert_block
-  assert_reason_contains "moduleRoot"
-  assert_reason_contains "testsRoot"
+  assert_reason_contains "codeflash:optimize"
 }
 
 # Setup:    package.json without "codeflash" key. Mock npx fails (not installed).
 #           One .js commit.
-# Validates: When both installation and configuration are missing for a JS
-#           project. The setup message should include an install step
-#           ("npm install --save-dev codeflash") embedded within the broader
-#           config setup instructions.
-# Expected: Block with reason containing both "moduleRoot" (setup) and
-#           "npm install --save-dev codeflash" (installation).
-@test "js: NOT configured + NOT installed → setup + install prompt" {
+# Validates: Even when both installation and configuration are missing, the hook
+#           delegates to the skill (which handles setup fallback).
+# Expected: Block with reason containing "codeflash:optimize".
+@test "js: NOT configured + NOT installed → delegates to skill" {
   add_js_commit
   create_package_json false
   setup_mock_npx false
 
   run run_hook false "PATH=$MOCK_BIN:$PATH"
   assert_block
-  assert_reason_contains "moduleRoot"
-  assert_reason_contains "npm install --save-dev codeflash"
+  assert_reason_contains "codeflash:optimize"
 }
 
 # Setup:    Configured package.json + mock npx. Commit touches a .ts file
@@ -391,6 +378,50 @@ setup() {
   run run_hook false "PATH=$MOCK_BIN:$PATH"
   assert_block
   assert_reason_contains "codeflash:optimize"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Java projects
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Setup:    One .java file committed after session start.
+# Validates: The hook detects Java file changes and produces a block decision
+#           pointing to the codeflash:optimize skill.
+# Expected: Block with reason containing "codeflash:optimize" and "Java".
+@test "java: .java commit triggers Java path" {
+  add_java_commit
+
+  run run_hook false
+  assert_block
+  assert_reason_contains "codeflash:optimize"
+  assert_reason_contains "Java"
+}
+
+# Setup:    One .java file committed. Run the hook twice.
+# Validates: Dedup logic works for Java commits (same as Python/JS).
+# Expected: First run blocks; second run exits silently.
+@test "java: dedup prevents double trigger" {
+  add_java_commit
+
+  run run_hook false
+  assert_block
+
+  run run_hook false
+  assert_no_block
+}
+
+# Setup:    One .java file committed. Verify the message does NOT mention JS/TS
+#           or Python — it should be Java-specific.
+# Validates: Java commits route through the Java branch, not JS or Python.
+# Expected: Block reason contains "Java", not "JS/TS" or "Python".
+@test "java: message is Java-specific, not JS or Python" {
+  add_java_commit
+
+  run run_hook false
+  assert_block
+  assert_reason_contains "Java"
+  assert_reason_not_contains "JS/TS"
+  assert_reason_not_contains "Python"
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════

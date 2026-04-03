@@ -14,12 +14,12 @@ Disambiguate the file and function from `$ARGUMENTS` if --file and/or --function
 
 ## Correct cwd
 
-Based on the language of the file/s of concern, find the closest project config file:
+Based on the language of the file/s of concern, find the config file closest to the file/files of concern (the file passed to codeflash --file or the files which changed in the diff):
 - **Python**: `pyproject.toml`
-- **Java**: `pom.xml` or `build.gradle.kts`
 - **JS/TS**: `package.json`
+- **Java**: `pom.xml` or `build.gradle`/`build.gradle.kts`
 
-`cd` into the directory where you found that config file.
+`cd` into the directory where you found the config file.
 
 ## Build the command
 

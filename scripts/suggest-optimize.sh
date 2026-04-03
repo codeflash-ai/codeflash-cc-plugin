@@ -98,6 +98,7 @@ fi
 HAS_PYTHON_CHANGES="false"
 HAS_JAVA_CHANGES="false"
 HAS_JS_CHANGES="false"
+HAS_JAVA_CHANGES="false"
 if echo "$CHANGED_FILES" | grep -qE '\.py$'; then
   HAS_PYTHON_CHANGES="true"
 fi
@@ -106,6 +107,9 @@ if echo "$CHANGED_FILES" | grep -qE '\.java$'; then
 fi
 if echo "$CHANGED_FILES" | grep -qE '\.(js|ts|jsx|tsx)$'; then
   HAS_JS_CHANGES="true"
+fi
+if echo "$CHANGED_FILES" | grep -qE '\.java$'; then
+  HAS_JAVA_CHANGES="true"
 fi
 
 # Dedup: don't trigger twice for the same set of changes.
@@ -137,6 +141,13 @@ if [ "$HAS_JS_CHANGES" = "true" ]; then
 fi
 
 # --- Java project path -----------------------------------------------------
+if [ "$HAS_JAVA_CHANGES" = "true" ]; then
+  MESSAGE="Java files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to optimize the Java code for performance."
+  jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+  exit 0
+fi
+
+# --- Java project path ----------------------------------------------------
 if [ "$HAS_JAVA_CHANGES" = "true" ]; then
   MESSAGE="Java files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to optimize the Java code for performance."
   jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'

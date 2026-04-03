@@ -5,9 +5,11 @@
 
 set -euo pipefail
 
-LOGFILE="/tmp/codeflash-hook-debug.log"
-exec 2>>"$LOGFILE"
-set -x
+if [ "${CODEFLASH_DEBUG:-}" = "1" ]; then
+  LOGFILE="/tmp/codeflash-hook-debug.log"
+  exec 2>>"$LOGFILE"
+  set -x
+fi
 
 # Read stdin (Stop hook pipes context as JSON via stdin)
 INPUT=$(cat)
@@ -94,9 +96,13 @@ fi
 
 # Determine which language families actually had changes
 HAS_PYTHON_CHANGES="false"
+HAS_JAVA_CHANGES="false"
 HAS_JS_CHANGES="false"
 if echo "$CHANGED_FILES" | grep -qE '\.py$'; then
   HAS_PYTHON_CHANGES="true"
+fi
+if echo "$CHANGED_FILES" | grep -qE '\.java$'; then
+  HAS_JAVA_CHANGES="true"
 fi
 if echo "$CHANGED_FILES" | grep -qE '\.(js|ts|jsx|tsx)$'; then
   HAS_JS_CHANGES="true"
@@ -125,7 +131,14 @@ echo "$CHANGED_FILES" >> "$OPTIMIZED_FILES_MARKER"
 
 # --- JS/TS project path ---------------------------------------------------
 if [ "$HAS_JS_CHANGES" = "true" ]; then
-  MESSAGE="JS/TS files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to to optimize the JavaScript/TypeScript code for performance. Use npx to execute codeflash"
+  MESSAGE="JS/TS files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to optimize the JavaScript/TypeScript code for performance. Use npx to execute codeflash"
+  jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
+  exit 0
+fi
+
+# --- Java project path -----------------------------------------------------
+if [ "$HAS_JAVA_CHANGES" = "true" ]; then
+  MESSAGE="Java files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to optimize the Java code for performance."
   jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'
   exit 0
 fi
@@ -135,6 +148,6 @@ if [ "$HAS_PYTHON_CHANGES" != "true" ]; then
   exit 0
 fi
 
-MESSAGE="Python files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to to optimize the Python code for performance."
+MESSAGE="Python files were changed in a recent commit. Use the codeflash:optimize skill WITHOUT ANY ARGUMENTS to optimize the Python code for performance."
 
 jq -nc --arg reason "$MESSAGE" '{"decision": "block", "reason": $reason, "systemMessage": $reason}'

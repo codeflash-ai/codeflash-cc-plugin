@@ -6,7 +6,7 @@ A minimal Claude Code plugin that runs [Codeflash](https://codeflash.ai) as a ba
 
 - Claude Code v2.1.38 or later
 - **Python projects**: [codeflash](https://pypi.org/project/codeflash/) installed in a virtual environment, configured via `[tool.codeflash]` in `pyproject.toml`
-- **Java projects**: [codeflash](https://pypi.org/project/codeflash/) installed (`pip install codeflash`), configured via `[tool.codeflash]` in `codeflash.toml`
+- **Java projects**: [codeflash](https://pypi.org/project/codeflash/) installed (`pip install codeflash`)
 - **JS/TS projects**: [codeflash](https://www.npmjs.com/package/codeflash) installed as a dev dependency (`npm install --save-dev codeflash`), configured via a `"codeflash"` key in `package.json`
 
 ## Installation
@@ -17,14 +17,6 @@ Add the plugin marketplace and install:
 
 ```bash
 /plugin marketplace add codeflash-ai/codeflash-cc-plugin
-/plugin install codeflash
-```
-
-### From a local clone
-
-```bash
-git clone https://github.com/codeflash-ai/codeflash-cc-plugin.git
-/plugin marketplace add ./codeflash-cc-plugin
 /plugin install codeflash
 ```
 
@@ -57,17 +49,10 @@ Run `/plugin` to open the plugin manager and confirm codeflash appears under the
 /optimize src/main/java/com/example/Fibonacci.java fibonacci
 ```
 
-### Optimize the entire project
+### Optimize via Natural language instruction
 
 ```
-/optimize --all
-```
-
-### Additional flags
-
-```
-/optimize src/utils.py --no-pr          # Skip PR creation
-/optimize src/utils.py --effort high    # Set optimization effort level
+make my_function run faster
 ```
 
 ### Auto-suggest after commits
@@ -110,6 +95,6 @@ Codeflash handles everything else: analysis, benchmarking, test generation, and 
 | Language | Config File | Project Markers |
 |----------|------------|-----------------|
 | Python | `pyproject.toml` | `pyproject.toml`, `setup.py` |
-| Java | `codeflash.toml` | `pom.xml`, `build.gradle` |
+| Java | N/A | `pom.xml`, `build.gradle` |
 | JavaScript | `package.json` | `package.json` |
 | TypeScript | `package.json` | `package.json`, `tsconfig.json` |

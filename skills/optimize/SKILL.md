@@ -2,8 +2,8 @@
 name: optimize
 description: Optimize Python, Java, JavaScript, or TypeScript code for performance using Codeflash
 user-invocable: true
-argument-hint: "[--file path] [--function name] [--all] [--effort low|medium|high] [--no-pr]"
-tools: ["Bash"]
+argument-hint: "[--file path] [--function name]"
+allowed-tools: ["Bash"]
 ---
 
 Run the `codeflash` CLI to optimize code for performance.
@@ -24,14 +24,11 @@ Based on the language of the file/s of concern, find the config file closest to 
 ## Build the command
 
 Start with: `codeflash --subagent` for Python and Java Code or `uv run codeflash --subagent` if a `uv.lock` file is present.
-Start with: `npx codeflash --subagent` for JS/TS Code
+Start with: `npx codeflash --subagent`for JS/TS Code
 
 Then add flags based on `$ARGUMENTS`:
 - If a `--file` path was provided: add `--file <path>`
 - If a `--function` name was also provided: add `--function <name>`
-- If `--all` was provided: add `--all` (optimizes the entire project)
-- If `--effort <level>` was provided: add `--effort <level>`
-- If `--no-pr` was provided: add `--no-pr` (skip PR creation)
 - If no arguments were provided, run `codeflash --subagent` as-is (it detects changed files automatically)
 
 ## Execute

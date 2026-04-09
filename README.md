@@ -38,15 +38,15 @@ Run `/plugin` to open the plugin manager and confirm codeflash appears under the
 ### Optimize a file
 
 ```
-/optimize src/utils.py
-/optimize src/main/java/com/example/Fibonacci.java
+/optimize --file src/utils.py
+/optimize --file src/main/java/com/example/Fibonacci.java
 ```
 
 ### Optimize a specific function
 
 ```
-/optimize src/utils.py my_function
-/optimize src/main/java/com/example/Fibonacci.java fibonacci
+/optimize --file src/utils.py --function my_function
+/optimize --file src/main/java/com/example/Fibonacci.java --function fibonacci
 ```
 
 ### Optimize via Natural language instruction

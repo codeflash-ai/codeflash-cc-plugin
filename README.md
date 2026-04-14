@@ -4,7 +4,7 @@ A minimal Claude Code plugin that runs [Codeflash](https://codeflash.ai) as a ba
 
 ## Prerequisites
 
-- Claude Code v2.1.38 or later
+- Claude Code v2.1.38 or later (check with `/status` if needed within claude code)
 - **Python projects**: [codeflash](https://pypi.org/project/codeflash/) installed in a virtual environment, configured via `[tool.codeflash]` in `pyproject.toml`
 - **Java projects**: [codeflash](https://pypi.org/project/codeflash/) installed (`pip install codeflash`)
 - **JS/TS projects**: [codeflash](https://www.npmjs.com/package/codeflash) installed as a dev dependency (`npm install --save-dev codeflash`), configured via a `"codeflash"` key in `package.json`
@@ -20,7 +20,7 @@ Add the plugin marketplace and install:
 /plugin install codeflash
 ```
 
-### Installation scope
+### Installation scope (optional)
 
 By default, plugins are installed at the user level (available across all projects). You can change this:
 
@@ -29,7 +29,7 @@ By default, plugins are installed at the user level (available across all projec
 /plugin install codeflash --scope local    # this project only, gitignored
 ```
 
-### Verify installation
+### Verify installation (optional)
 
 Run `/plugin` to open the plugin manager and confirm codeflash appears under the **Installed** tab.
 
